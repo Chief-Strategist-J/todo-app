@@ -14,13 +14,13 @@ return new class extends Migration
         Schema::create('todos', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->text('description')->nullable();
+            $table->string('description')->nullable();
             $table->boolean('is_completed')->default(false);
             $table->dateTime('due_date')->nullable();
             $table->string('priority')->default('medium'); // priority: low, medium, high
             $table->unsignedBigInteger('assigned_to')->nullable(); // user ID to whom the task is assigned
             $table->string('tags')->nullable(); // tags for categorization
-            $table->unsignedBigInteger('created_by'); // user ID who created the task
+            $table->unsignedBigInteger('created_by')->nullable(); // user ID who created the task
             $table->unsignedBigInteger('updated_by')->nullable(); // user ID who last updated the task
             $table->string('status')->default('pending'); // status: pending, in progress, completed
             $table->dateTime('reminder')->nullable(); // reminder date and time
@@ -31,9 +31,9 @@ return new class extends Migration
             $table->string('location')->nullable(); // location related to the task
             $table->boolean('recurring')->default(false); // indicates if the task is recurring
             $table->string('recurring_frequency')->nullable(); // frequency of recurrence: daily, weekly, monthly
-            $table->text('notes')->nullable(); // additional notes
+            $table->string('notes')->nullable(); // additional notes
             $table->dateTime('completed_at')->nullable(); // timestamp when the task was completed
-            $table->string('color_code')->nullable(); // color code for the task
+            $table->string('color_code')->nullable(); // color code for the task.
             $table->boolean('is_archived')->default(false); // indicates if the task is archived
 
             // Indexes

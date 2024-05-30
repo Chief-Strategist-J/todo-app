@@ -2,27 +2,43 @@
 
 namespace App\Http\Requests;
 
+use Exception;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
+
+use function App\Helper\errorMsg;
 
 class StoreTodoRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
+
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    protected function failedValidation(Validator $validator) : void
+    {
+        throw new HttpResponseException(response()->json([
+            'success' => false,
+            'message' => 'Validation errors',
+            'data' => $validator->errors()->first()
+        ], 422));
+    }
+
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'A title is required',
+        ];
+    }
+
     public function rules(): array
     {
         return [
-            //
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'notes' => 'nullable|string',
         ];
     }
 }
