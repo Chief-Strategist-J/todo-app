@@ -18,10 +18,7 @@ return new class extends Migration
             $table->boolean('is_completed')->default(false);
             $table->dateTime('due_date')->nullable();
             $table->string('priority')->default('medium'); // priority: low, medium, high
-            $table->unsignedBigInteger('assigned_to')->nullable(); // user ID to whom the task is assigned
             $table->string('tags')->nullable(); // tags for categorization
-            $table->unsignedBigInteger('created_by')->nullable(); // user ID who created the task
-            $table->unsignedBigInteger('updated_by')->nullable(); // user ID who last updated the task
             $table->string('status')->default('pending'); // status: pending, in progress, completed
             $table->dateTime('reminder')->nullable(); // reminder date and time
             $table->string('attachment')->nullable(); // path to an attachment file
@@ -35,17 +32,27 @@ return new class extends Migration
             $table->dateTime('completed_at')->nullable(); // timestamp when the task was completed
             $table->string('color_code')->nullable(); // color code for the task.
             $table->boolean('is_archived')->default(false); // indicates if the task is archived
+            
+            // Keys
+            $table->string('firebase_todo_id')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable(); // user ID who created the task
+            $table->unsignedBigInteger('updated_by')->nullable(); // user ID who last updated the task
+            $table->unsignedBigInteger('assigned_to')->nullable(); // user ID to whom the task is assigned
+            $table->foreignId('parent_id')->nullable()->constrained('todos')->onDelete('cascade');
 
             // Indexes
+            $table->index('firebase_todo_id');
+            $table->index('parent_id');
+            $table->index('created_by');
+            $table->index('updated_by');
+            $table->index('assigned_to');
+
             $table->index('title');
             $table->index('description');
             $table->index('is_completed');
             $table->index('due_date');
             $table->index('priority');
-            $table->index('assigned_to');
             $table->index('tags');
-            $table->index('created_by');
-            $table->index('updated_by');
             $table->index('status');
             $table->index('reminder');
             $table->index('attachment');
@@ -59,6 +66,7 @@ return new class extends Migration
             $table->index('completed_at');
             $table->index('color_code');
             $table->index('is_archived');
+
             $table->softDeletes();
             $table->timestamps();
         });

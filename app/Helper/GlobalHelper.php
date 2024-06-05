@@ -14,7 +14,7 @@ function errorMsg($message, int $statusCode = 422): JsonResponse
                     'success' => false,
                     'message' => $message,
                     'data' => []
-                ], $statusCode)),
+                ], $statusCode)),   
             ]
         );
 }
