@@ -15,20 +15,13 @@ class TodoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $todo = new Todo();
-        return successMessage(data: $todo->getTodoList());
-    }
-
-    public function create()
-    {
-        //
+        return successMessage(data: resolve(Todo::class)->getTodoList());
     }
 
     public function store(StoreTodoRequest $request): JsonResponse
     {
         try {
-            $todo = new Todo();
-            return $todo->createTodo(request: $request);
+            return resolve(Todo::class)->createTodo(request: $request);
         } catch (Throwable $e) {
             report($e);
             return errorMsg(message: $e->getMessage());
@@ -38,27 +31,16 @@ class TodoController extends Controller
     public function updateTodo(UpdateTodoRequest $request): JsonResponse
     {
         try {
-            $todo = Todo::find($request->input("todo_id"));
-            return $todo->updateTodo(request: $request);
+            return resolve(Todo::class)->updateTodo(request: $request);
         } catch (Throwable $e) {
             report($e);
             return errorMsg(message: $e);
         }
     }
 
-    public function show(Todo $todo)
-    {
-
-    }
-
-    public function edit(Todo $todo)
-    {
-
-    }
-
     public function update(UpdateTodoRequest $request, Todo $todo): JsonResponse
     {
-        return $this->updateTodo($request);
+        return resolve(Todo::class)->updateTodo($request);
     }
 
     public function destroy(Request $request): JsonResponse
@@ -73,5 +55,17 @@ class TodoController extends Controller
             report($e);
             return errorMsg(message: $e->getTrace());
         }
+    }
+
+    public function create()
+    {
+    }
+
+    public function show(Todo $todo)
+    {
+    }
+
+    public function edit(Todo $todo)
+    {
     }
 }
