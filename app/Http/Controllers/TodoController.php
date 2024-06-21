@@ -18,6 +18,11 @@ class TodoController extends Controller
         return successMessage(data: resolve(Todo::class)->getTodoList());
     }
 
+    public function getlistOfTodosPagignated(): JsonResponse
+    {
+        return successMessage(data: resolve(Todo::class)->getPerPageTodoList());
+    }
+
     public function store(StoreTodoRequest $request): JsonResponse
     {
         try {

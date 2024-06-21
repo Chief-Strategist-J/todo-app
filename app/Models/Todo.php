@@ -4,13 +4,18 @@ namespace App\Models;
 
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
+use App\Jobs\FetchPaginatedTodos;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 
 use function App\Helper\successMessage;
 
@@ -42,7 +47,10 @@ class Todo extends Model
         'completed_at',
         'color_code',
         'is_archived',
-        'firebase_todo_id'
+        'firebase_todo_id',
+        'start_time',
+        'end_time',
+        'date',
     ];
 
     protected $casts = [
@@ -50,6 +58,9 @@ class Todo extends Model
         'description' => 'string',
         'is_completed' => 'boolean',
         'due_date' => 'datetime',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
+        'date' => 'datetime',
         'priority' => 'string',
         'assigned_to' => 'integer',
         'tags' => 'string',
@@ -83,12 +94,13 @@ class Todo extends Model
             'tags', 'created_by', 'updated_by', 'status', 'reminder', 'attachment',
             'category', 'estimated_time', 'actual_time', 'location', 'recurring',
             'recurring_frequency', 'firebase_todo_id', 'completed_at', 'color_code',
-            'is_archived'
+            'is_archived', 'is_completed', 'start_time', 'end_time', 'date',
         ];
 
         foreach ($inputFields as $field) {
             if ($request->has($field)) {
                 $todo->$field = $request->input($field);
+                Log::debug('An informational message.' . $todo->$field);
             }
         }
     }
@@ -103,9 +115,9 @@ class Todo extends Model
 
         if (is_null($todo)) return successMessage(data: ['message' => "todo id does not exist"]);
 
-        $this->processTodoFields($request, $todo);
-
         $this->clearTodoListCache();
+
+        $this->processTodoFields($request, $todo);
 
         $todo->update();
 
@@ -135,11 +147,40 @@ class Todo extends Model
     public function getTodoList(): Collection
     {
         $minutesInWeek = 7 * 24 * 60;
-
-        $fields = ['id', 'title', 'description', 'notes', 'firebase_todo_id'];
+        $fields = ['id', 'title', 'description', 'notes', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
 
         return Cache::remember(Todo::cacheKeyForTodoList, $minutesInWeek, function () use ($fields) {
             return Todo::select($fields)->get();
         });
+    }
+
+    public function getPerPageTodoList(): array
+    {
+        $minutesInWeek = 7 * 24 * 60;   
+        $fields = ['id', 'title', 'description', 'notes', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
+
+        $page = request('page', 1);
+        $perPage = 15;
+        $offset = ($page - 1) * $perPage;
+        $cacheKey = "todos_page_{$page}";
+
+        $paginator = Cache::remember($cacheKey, $minutesInWeek, function () use ($fields, $offset, $perPage) {
+            $fieldsString = implode(', ', $fields);
+
+            $todosQuery = DB::table('todos')
+                ->select(DB::raw($fieldsString))
+                ->selectRaw('COUNT(*) OVER() AS total_items')
+                ->paginate($this->perPage);
+
+            return $todosQuery;
+        });
+
+        return [
+            'current_page' => $paginator->currentPage(),
+            'next_page' => $paginator->nextPageUrl(),
+            'prev_page' => $paginator->previousPageUrl(),
+            'todos' => $paginator->items(),
+
+        ];
     }
 }

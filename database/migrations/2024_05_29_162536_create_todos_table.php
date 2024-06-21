@@ -17,6 +17,11 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->boolean('is_completed')->default(false);
             $table->dateTime('due_date')->nullable();
+            
+            $table->dateTime('start_time')->nullable();
+            $table->dateTime('end_time')->nullable();
+            $table->dateTime('date')->nullable();
+            
             $table->string('priority')->default('medium'); // priority: low, medium, high
             $table->string('tags')->nullable(); // tags for categorization
             $table->string('status')->default('pending'); // status: pending, in progress, completed

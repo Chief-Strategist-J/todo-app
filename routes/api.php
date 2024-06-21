@@ -9,6 +9,8 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::resource('todo', TodoController::class);
+
+Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodosPagignated']);
 Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
 
 
