@@ -156,7 +156,7 @@ class Todo extends Model
 
     public function getPerPageTodoList(): array
     {
-        $minutesInWeek = 7 * 24 * 60;   
+        $minutesInWeek = 7 * 24 * 60;
         $fields = ['id', 'title', 'description', 'notes', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
 
         $page = request('page', 1);

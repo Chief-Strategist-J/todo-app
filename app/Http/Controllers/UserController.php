@@ -18,17 +18,23 @@ use function App\Helper\successMessage;
 
 class UserController extends Controller
 {
-    public function login(UserLoginRequest $request): JsonResponse
+    public function loginOrSignUp(UserLoginRequest $request): JsonResponse
     {
         try {
             $credentials = $request->only('email', 'password');
+            $isSignUp = $request->input('is_sign_up');
+
+            if ($request->filled('is_sign_up') && $request->input('is_sign_up')) {
+                Cache::forget($request->input('email'));
+            }
+
             $user = Cache::remember($credentials['email'], now()->addWeek(), function () use ($credentials) {
                 return User::where('email', $credentials['email'])->first();
             });
 
             if (!is_null($user)) {
                 $authenticated = Auth::attempt($credentials);
-                if ($authenticated) return $this->generateLoginResponse($user, true);
+                if ($authenticated) return $this->generateLoginResponse($user, true, isSignUp: $isSignUp);
                 errorMsg(message: 'User exists but the password is incorrect. Please check again');
             }
 
@@ -39,18 +45,19 @@ class UserController extends Controller
             ];
 
             $user = User::create($registerUser);
-            return $this->generateLoginResponse($user);
+            return $this->generateLoginResponse($user, isSignUp: $isSignUp);
         } catch (Throwable $e) {
             report($e);
-            Log::info("Error while login");
+            Log::info("Error While login");
             throw $e;
         }
     }
 
-    private function generateLoginResponse($user, $isAuthenticated = false): JsonResponse
+    private function generateLoginResponse(User $user, bool $isAuthenticated = false, bool $isSignUp = false): JsonResponse
     {
         return successMessage(data: [
             'is_login' => $isAuthenticated,
+            "is_sign_up" => $isSignUp,
             'access_token' => 'Bearer ' . $user->createToken('auth_token')->plainTextToken,
             'user_info' => $user,
         ]);
@@ -61,7 +68,8 @@ class UserController extends Controller
         //
     }
 
-    public function resetPassword(){
+    public function resetPassword()
+    {
         //
     }
 

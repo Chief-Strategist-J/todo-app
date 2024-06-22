@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SocialAccountDetail extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
     protected $hidden = [
         'created_at',
         'updated_at',
@@ -30,7 +30,7 @@ class SocialAccountDetail extends Model
         'social_token_expires_at' => 'datetime',
         'is_verified' => 'boolean',
     ];
-    
+
     protected $fillable = [
         'firebase_social_account_detail_id',
         'user_social_account_id',
@@ -60,5 +60,4 @@ class SocialAccountDetail extends Model
     {
         return $this->belongsTo(UserSocialAccountDetail::class, 'user_social_account_id');
     }
-    
 }

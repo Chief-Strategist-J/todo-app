@@ -19,11 +19,13 @@ return new class extends Migration
             $table->string('password')->index();;
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token')->index();
+            $table->softDeletes();
             $table->timestamp('created_at')->nullable();
         });
 
@@ -34,6 +36,7 @@ return new class extends Migration
             $table->text('user_agent')->nullable();
             $table->longText('payload');
             $table->integer('last_activity')->index();
+            $table->softDeletes();
         });
     }
 

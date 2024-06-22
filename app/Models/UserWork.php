@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserWork extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'firebase_user_works_id',
@@ -52,13 +52,13 @@ class UserWork extends Model
         'achievements' => 'string',
         'is_verified' => 'boolean',
     ];
-    
+
     protected $hidden = [
         'created_at',
         'updated_at',
         'deleted_at',
     ];
-    
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

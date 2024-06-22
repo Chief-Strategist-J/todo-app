@@ -28,9 +28,10 @@ class User extends Authenticatable
         'remember_token',
         'created_at',
         'updated_at',
-        'email_verified_at'
+        'email_verified_at',
+        'deleted_at',
     ];
-
+   
     protected function casts(): array
     {
         return [
@@ -83,5 +84,4 @@ class User extends Authenticatable
     {
         return $this->hasMany(Education::class);
     }
-    
 }

@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserDetail extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'first_name', 'last_name','email', 'phone','birthdate','address','city','state',
-        'country','zipcode','avatar','bio','is_active','last_login_at'
+        'first_name', 'last_name', 'email', 'phone', 'birthdate', 'address', 'city', 'state',
+        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at'
     ];
 
     protected $casts = [
@@ -68,7 +68,4 @@ class UserDetail extends Model
     {
         return $this->hasMany(UserWork::class);
     }
-
-
-    
 }

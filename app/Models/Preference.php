@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Preference extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $casts = [
         'firebase_preferences_id' => 'string',
@@ -19,7 +19,7 @@ class Preference extends Model
         'name' => 'string',
         'value' => 'string',
     ];
-    
+
     protected $fillable = [
         'firebase_preferences_id',
         'user_preferences_detail_id',
@@ -44,5 +44,4 @@ class Preference extends Model
     {
         return $this->belongsTo(UserPreference::class, 'user_preferences_detail_id');
     }
-    
 }

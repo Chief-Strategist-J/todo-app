@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserPreference extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'firebase_user_preferences_id','user_detail_id','user_id','receive_email_notifications','dark_mode','language','timezone',
-        'dashboard_settings','additional_details','enable_two_factor_auth','enable_automatic_updates','enable_push_notifications',
-        'theme_color','currency','notification_sound','show_online_status','default_view_mode','items_per_page'
+        'firebase_user_preferences_id', 'user_detail_id', 'user_id', 'receive_email_notifications', 'dark_mode', 'language', 'timezone',
+        'dashboard_settings', 'additional_details', 'enable_two_factor_auth', 'enable_automatic_updates', 'enable_push_notifications',
+        'theme_color', 'currency', 'notification_sound', 'show_online_status', 'default_view_mode', 'items_per_page'
     ];
 
     protected $casts = [

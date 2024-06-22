@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Permission extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
     protected $casts = [
         'firebase_permissions_id' => 'string',
         'name' => 'string',
@@ -22,7 +22,7 @@ class Permission extends Model
         'grant_type' => 'string',
         'level' => 'integer',
     ];
-    
+
     protected $fillable = [
         'firebase_permissions_id',
         'user_permissions_detail_id',
@@ -43,7 +43,7 @@ class Permission extends Model
         'updated_at',
         'deleted_at',
     ];
-    
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

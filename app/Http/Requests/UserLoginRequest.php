@@ -7,7 +7,6 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-use function App\Helper\errorMsg;
 class UserLoginRequest extends FormRequest
 {
     public function authorize(): bool
@@ -29,6 +28,7 @@ class UserLoginRequest extends FormRequest
         return [
             'email.required' => 'A email is required',
             'password.required' => 'A password is required',
+            'is_sign_up.required' => 'a is_sign_up field is required',
         ];
     }
 
@@ -36,9 +36,10 @@ class UserLoginRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:20',
-            'password' => 'nullable|string',
+            'password' => 'required|string',
+            'is_sign_up' => 'required|nullable|boolean',
             'email' => [
-                'nullable',
+                'required',
                 'string',
                 'email',
             ],

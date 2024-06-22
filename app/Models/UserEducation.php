@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserEducation extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
     protected $fillable = [
-        'firebase_user_education_id','user_detail_id','user_id','institution_name','degree','field_of_study','start_date','end_date',
-        'grade','currently_studying','location','activities','achievements','is_verified','major','minor','advisor','thesis_title',
-        'honors','study_mode','description','transcript_url','certification','is_completed','institution_website','notes'
+        'firebase_user_education_id', 'user_detail_id', 'user_id', 'institution_name', 'degree', 'field_of_study', 'start_date', 'end_date',
+        'grade', 'currently_studying', 'location', 'activities', 'achievements', 'is_verified', 'major', 'minor', 'advisor', 'thesis_title',
+        'honors', 'study_mode', 'description', 'transcript_url', 'certification', 'is_completed', 'institution_website', 'notes'
     ];
 
     protected $casts = [
@@ -63,6 +63,4 @@ class UserEducation extends Model
     {
         return $this->belongsTo(User::class);
     }
-
-
 }

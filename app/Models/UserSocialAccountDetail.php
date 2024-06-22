@@ -10,11 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserSocialAccountDetail extends Model
 {
-    use HasFactory,SoftDeletes;
-    
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
-        'firebase_account_details_id','user_detail_id','user_id','provider','social_id','avatar','profile_url',
-        'profile_data','access_token','refresh_token','token_expires_at','is_active'
+        'firebase_account_details_id', 'user_detail_id', 'user_id', 'provider', 'social_id', 'avatar', 'profile_url',
+        'profile_data', 'access_token', 'refresh_token', 'token_expires_at', 'is_active'
     ];
 
     protected $casts = [
@@ -40,5 +40,4 @@ class UserSocialAccountDetail extends Model
     {
         return $this->hasMany(SocialAccountDetail::class, 'user_social_account_id');
     }
-   
 }

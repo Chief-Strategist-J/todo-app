@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Education extends Model
 {
-    use HasFactory,SoftDeletes;
-    
+    use HasFactory, SoftDeletes;
+
     protected $fillable = [
         'firebase_education_id',
         'user_education_detail_id',
@@ -63,7 +63,13 @@ class Education extends Model
         'feedback' => 'string',
         'resources' => 'string',
     ];
-    
+
+    protected $hidden = [
+        'created_at',
+        'updated_at',
+        'deleted_at',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -73,5 +79,4 @@ class Education extends Model
     {
         return $this->belongsTo(UserEducation::class, 'user_education_detail_id');
     }
-    
 }

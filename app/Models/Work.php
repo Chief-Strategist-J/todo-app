@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Work extends Model
 {
-    use HasFactory,SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $casts = [
         'firebase_work_id' => 'string',
@@ -28,7 +28,7 @@ class Work extends Model
         'responsibilities' => 'string',
         'challenges' => 'string',
     ];
-    
+
     protected $fillable = [
         'firebase_work_id',
         'user_id',
@@ -64,5 +64,4 @@ class Work extends Model
     {
         return $this->belongsTo(UserWork::class, 'user_work_detail_id');
     }
-    
 }
