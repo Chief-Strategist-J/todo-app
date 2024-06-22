@@ -40,9 +40,9 @@ return new class extends Migration
             
             // Keys
             $table->string('firebase_todo_id')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable(); // user ID who created the task
-            $table->unsignedBigInteger('updated_by')->nullable(); // user ID who last updated the task
-            $table->unsignedBigInteger('assigned_to')->nullable(); // user ID to whom the task is assigned
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->unsignedBigInteger('assigned_to')->nullable();
             $table->foreignId('parent_id')->nullable()->constrained('todos')->onDelete('cascade');
 
             // Indexes

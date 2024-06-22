@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UserLoginRequest;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -28,7 +29,7 @@ class UserController extends Controller
             if (!is_null($user)) {
                 $authenticated = Auth::attempt($credentials);
                 if ($authenticated) return $this->generateLoginResponse($user, true);
-                return errorMsg(message: 'User exists but the password is incorrect. Please check again');
+                errorMsg(message: 'User exists but the password is incorrect. Please check again');
             }
 
             $registerUser = [
@@ -53,6 +54,15 @@ class UserController extends Controller
             'access_token' => 'Bearer ' . $user->createToken('auth_token')->plainTextToken,
             'user_info' => $user,
         ]);
+    }
+
+    public function forgetPassword(Request $request)
+    {
+        //
+    }
+
+    public function resetPassword(){
+        //
     }
 
     public function signOut()

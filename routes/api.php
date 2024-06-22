@@ -15,7 +15,5 @@ Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodos
 Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
 
 Route::post('login', [UserController::class, 'login'])->name('login');
+Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
 Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');
-
-
-
