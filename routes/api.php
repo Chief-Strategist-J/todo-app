@@ -15,5 +15,10 @@ Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodos
 Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
 
 Route::post('loginOrSignUp', [UserController::class, 'loginOrSignUp'])->name('loginOrSignUp');
+
+Route::post('createOtp', [UserController::class, 'createOtp'])->name('createOtp');
+Route::post('verifyOtp', [UserController::class, 'verifyOtp'])->name('verifyOtp');
+
+
 Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
 Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');

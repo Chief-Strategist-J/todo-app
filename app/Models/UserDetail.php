@@ -14,10 +14,11 @@ class UserDetail extends Model
 
     protected $fillable = [
         'first_name', 'last_name', 'email', 'phone', 'birthdate', 'address', 'city', 'state',
-        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at'
+        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at','user_id'
     ];
 
     protected $casts = [
+        
         'first_name' => 'string',
         'last_name' => 'string',
         'email' => 'string',

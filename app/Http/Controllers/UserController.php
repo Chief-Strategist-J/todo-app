@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UserLoginRequest;
 use App\Models\User;
+use App\Models\UserDetail;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
@@ -45,6 +47,13 @@ class UserController extends Controller
             ];
 
             $user = User::create($registerUser);
+
+            $userDetail = UserDetail::updateOrCreate(
+                ['user_id' => $user->id],
+                ['email' => $credentials['email']]
+            );
+
+
             return $this->generateLoginResponse($user, isSignUp: $isSignUp);
         } catch (Throwable $e) {
             report($e);
@@ -66,6 +75,60 @@ class UserController extends Controller
     public function forgetPassword(Request $request)
     {
         //
+    }
+
+    public function createOtp(Request $request): JsonResponse
+    {
+        $validatedData = $request->validate([
+            'user_id' => 'required|integer',
+        ]);
+
+        $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
+        $cachedOtp = Cache::get('otp_' . $validatedData['user_id']);
+
+        if ($cachedOtp) {
+            return successMessage(data: [
+                'success' => true,
+                'message' => 'OTP exists and is valid.',
+                'otp' => $cachedOtp,
+            ]);
+        }
+
+        Cache::put('otp_' . $validatedData['user_id'], $otp, now()->addMinutes(2));
+
+        return successMessage(data: [
+            'success' => true,
+            'message' => 'OTP created and sent successfully.',
+            'otp' => $otp,
+        ]);
+    }
+
+    public function verifyOtp(Request $request): JsonResponse
+    {
+        $validatedData = $request->validate([
+            'user_id' => 'required|integer',
+            'otp' => 'required|digits:6',
+        ]);
+
+        $cachedOtp = Cache::get('otp_' . $validatedData['user_id']);
+
+        if ($cachedOtp && $cachedOtp === $validatedData['otp']) {
+            Cache::forget('otp_' . $validatedData['user_id']);
+            return successMessage(data: [
+                'success' => true,
+                'message' => 'OTP is verified.',
+                'otp' => $validatedData['otp'],
+            ]);
+        }
+
+        return successMessage(data: [
+            'success' => false,
+            'message' => 'OTP verification failed.',
+        ]);
+    }
+
+    public function registerUserDetails(Request $request){
+
     }
 
     public function resetPassword()

@@ -32,6 +32,8 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_login_at')->nullable();
             
+            $table->string('temp_otp')->nullable();
+            
             $table->json('user_settings')->nullable();
             $table->json('additional_details')->nullable();
             
