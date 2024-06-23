@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateUserDetailRequest;
 use App\Http\Requests\UserLoginRequest;
 use App\Models\User;
 use App\Models\UserDetail;
@@ -36,7 +37,8 @@ class UserController extends Controller
 
             if (!is_null($user)) {
                 $authenticated = Auth::attempt($credentials);
-                if ($authenticated) return $this->generateLoginResponse($user, true, isSignUp: $isSignUp);
+                if ($authenticated)
+                    return $this->generateLoginResponse($user, true, isSignUp: $isSignUp);
                 errorMsg(message: 'User exists but the password is incorrect. Please check again');
             }
 
@@ -62,6 +64,139 @@ class UserController extends Controller
         }
     }
 
+
+
+    public function createOtp(UpdateUserDetailRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $userId = $request->input('user_id');
+
+        if ($user && $userId && $user->id != $userId) {
+            return $this->bearerNotMatched($request);
+        }
+
+        $cachedOtpId = '_otp_' . $userId;
+        $cachedOtp = Cache::get($cachedOtpId);
+
+        if ($cachedOtp) {
+            return successMessage(
+                data: [
+                    'success' => true,
+                    'message' => 'OTP exists and is valid.',
+                    'otp' => $cachedOtp,
+                ]
+            );
+        }
+
+        $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
+
+        return successMessage(
+            data: [
+                'success' => true,
+                'message' => 'OTP created and sent successfully.',
+                'otp' => $otp,
+            ]
+        );
+    }
+
+    public function verifyOtp(UpdateUserDetailRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $userId = $request->input('user_id');
+
+        if ($user && $userId && $user->id != $userId) {
+            return $this->bearerNotMatched($request);
+        }
+
+        $request->validate(['otp' => 'required|digits:6']);
+
+        $cachedOtpId = '_otp_' . $userId;
+        $cachedOtp = Cache::get($cachedOtpId);
+        $otp = $request->input('otp');
+
+        if ($cachedOtp && $cachedOtp === $otp) {
+            Cache::forget('otp_' . $userId);
+            return successMessage(
+                data: [
+                    'success' => true,
+                    'message' => 'OTP is verified.',
+                    'otp' => $otp,
+                ],
+            );
+        }
+
+        return successMessage(
+            data: [
+                'success' => false,
+                'message' => 'OTP verification failed.',
+            ]
+        );
+    }
+
+    public function updateUserDetails(UpdateUserDetailRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $userId = $request->input('user_id');
+
+        if ($user && $userId && $user->id != $userId) {
+            return $this->bearerNotMatched($request);
+        }
+
+        $fields = [
+            'first_name', 'last_name', 'phone', 'birthdate', 'address', 'city',
+            'state', 'country', 'zipcode', 'avatar', 'bio', 'is_active', 'user_id',
+            'firebase_user_details_id '
+        ];
+
+        $cacheKey = '_user_detail_' . $userId;
+        Cache::forget($cacheKey);
+        $userDetail = UserDetail::updateOrCreate(
+            ['user_id' => $request->input('user_id')],
+            collect($request->only($fields))->filter()->all()
+        );
+
+        return successMessage(data: ['user_info' => $userDetail]);
+    }
+
+
+    public function getUserDetail(UpdateUserDetailRequest $request): JsonResponse
+    {
+
+        $user = $request->user();
+        $userId = $request->input('user_id');
+
+        if ($user && $userId && $user->id != $userId) {
+            return $this->bearerNotMatched($request);
+        }
+
+        $cacheKey = '_user_detail_' . $userId;
+        $info = Cache::remember($cacheKey, now()->addWeek(), function () use ($userId) {
+            return UserDetail::find($userId);
+        });
+
+        if (is_null($info)) {
+            return successMessage(
+                data: [
+                    'user_info' => [],
+                    'message' => 'No details fond for this user'
+                ]
+            );
+        }
+
+        return successMessage(data: ['user_info' => $info]);
+    }
+
+    public function forgetPassword(Request $request)
+    {
+        //
+    }
+
+    public function resetPassword()
+    {
+        //
+    }
+
     private function generateLoginResponse(User $user, bool $isAuthenticated = false, bool $isSignUp = false): JsonResponse
     {
         return successMessage(data: [
@@ -72,83 +207,15 @@ class UserController extends Controller
         ]);
     }
 
-    public function forgetPassword(Request $request)
+    private function bearerNotMatched(UpdateUserDetailRequest $request)
     {
-        //
-    }
-
-    public function createOtp(Request $request): JsonResponse
-    {
-        $validatedData = $request->validate([
-            'user_id' => 'required|integer',
-        ]);
-
-        $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
-        $cachedOtp = Cache::get('otp_' . $validatedData['user_id']);
-
-        if ($cachedOtp) {
-            return successMessage(data: [
-                'success' => true,
-                'message' => 'OTP exists and is valid.',
-                'otp' => $cachedOtp,
-            ]);
-        }
-
-        Cache::put('otp_' . $validatedData['user_id'], $otp, now()->addMinutes(2));
-
-        return successMessage(data: [
-            'success' => true,
-            'message' => 'OTP created and sent successfully.',
-            'otp' => $otp,
-        ]);
-    }
-
-    public function verifyOtp(Request $request): JsonResponse
-    {
-        $validatedData = $request->validate([
-            'user_id' => 'required|integer',
-            'otp' => 'required|digits:6',
-        ]);
-
-        $cachedOtp = Cache::get('otp_' . $validatedData['user_id']);
-
-        if ($cachedOtp && $cachedOtp === $validatedData['otp']) {
-            Cache::forget('otp_' . $validatedData['user_id']);
-            return successMessage(data: [
-                'success' => true,
-                'message' => 'OTP is verified.',
-                'otp' => $validatedData['otp'],
-            ]);
-        }
-
-        return successMessage(data: [
-            'success' => false,
-            'message' => 'OTP verification failed.',
-        ]);
-    }
-
-    public function registerUserDetails(Request $request): JsonResponse
-    {
-       
-
-        $fields = [
-            'first_name', 'last_name', 'phone', 'birthdate', 'address', 'city', 'state',
-            'country', 'zipcode', 'avatar', 'bio', 'is_active', 'user_id','firebase_user_details_id '
-        ];
-
-        $userDetail = UserDetail::updateOrCreate(
-            ['user_id' => $request->input('user_id')],
-            collect($request->only($fields))->filter()->all()
+        return successMessage(
+            status: 403,
+            data: [
+                'user_info' => [],
+                'message' => 'User ID and bearer token mismatch.'
+            ],
         );
-
-        return successMessage(data: [
-            'user_info' => $userDetail,
-        ]);
-    }
-
-    public function resetPassword()
-    {
-        //
     }
 
     public function signOut()

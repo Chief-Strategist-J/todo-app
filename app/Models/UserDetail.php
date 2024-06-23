@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
 
 class UserDetail extends Model
 {
@@ -14,11 +15,11 @@ class UserDetail extends Model
 
     protected $fillable = [
         'first_name', 'last_name', 'email', 'phone', 'birthdate', 'address', 'city', 'state',
-        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at','user_id','firebase_user_details_id'
+        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at', 'user_id', 'firebase_user_details_id'
     ];
 
     protected $casts = [
-        
+
         'first_name' => 'string',
         'last_name' => 'string',
         'email' => 'string',
@@ -74,4 +75,7 @@ class UserDetail extends Model
     {
         return $this->hasMany(UserWork::class);
     }
+
+
+    
 }

@@ -10,17 +10,16 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::resource('todo', TodoController::class);
-
 Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodosPagignated']);
 Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
 
 Route::post('loginOrSignUp', [UserController::class, 'loginOrSignUp'])->name('loginOrSignUp');
 
-Route::post('createOtp', [UserController::class, 'createOtp'])->name('createOtp');
-Route::post('verifyOtp', [UserController::class, 'verifyOtp'])->name('verifyOtp');
-
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('registerUserDetails', [UserController::class, 'registerUserDetails'])->name('registerUserDetails');
+    Route::post('createOtp', [UserController::class, 'createOtp'])->name('createOtp');
+    Route::post('verifyOtp', [UserController::class, 'verifyOtp'])->name('verifyOtp');
+    Route::post('updateUserDetails', [UserController::class, 'updateUserDetails'])->name('updateUserDetails');
+    Route::post('getUserDetail', [UserController::class, 'getUserDetail'])->name('getUserDetail');
 });
 
 
