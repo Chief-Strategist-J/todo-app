@@ -19,6 +19,11 @@ Route::post('loginOrSignUp', [UserController::class, 'loginOrSignUp'])->name('lo
 Route::post('createOtp', [UserController::class, 'createOtp'])->name('createOtp');
 Route::post('verifyOtp', [UserController::class, 'verifyOtp'])->name('verifyOtp');
 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('registerUserDetails', [UserController::class, 'registerUserDetails'])->name('registerUserDetails');
+});
+
+
 
 Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
 Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');

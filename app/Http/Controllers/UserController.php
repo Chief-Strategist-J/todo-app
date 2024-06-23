@@ -127,8 +127,23 @@ class UserController extends Controller
         ]);
     }
 
-    public function registerUserDetails(Request $request){
+    public function registerUserDetails(Request $request): JsonResponse
+    {
+       
 
+        $fields = [
+            'first_name', 'last_name', 'phone', 'birthdate', 'address', 'city', 'state',
+            'country', 'zipcode', 'avatar', 'bio', 'is_active', 'user_id','firebase_user_details_id '
+        ];
+
+        $userDetail = UserDetail::updateOrCreate(
+            ['user_id' => $request->input('user_id')],
+            collect($request->only($fields))->filter()->all()
+        );
+
+        return successMessage(data: [
+            'user_info' => $userDetail,
+        ]);
     }
 
     public function resetPassword()

@@ -14,7 +14,7 @@ class UserDetail extends Model
 
     protected $fillable = [
         'first_name', 'last_name', 'email', 'phone', 'birthdate', 'address', 'city', 'state',
-        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at','user_id'
+        'country', 'zipcode', 'avatar', 'bio', 'is_active', 'last_login_at','user_id','firebase_user_details_id'
     ];
 
     protected $casts = [
@@ -41,6 +41,11 @@ class UserDetail extends Model
         'created_at',
         'updated_at',
         'deleted_at',
+        'is_active',
+        'last_login_at',
+        'temp_otp',
+        'user_settings',
+        'additional_details'
     ];
 
     public function user(): BelongsTo
