@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
@@ -116,7 +115,7 @@ class UserController extends Controller
         $otp = $request->input('otp');
 
         if ($cachedOtp && $cachedOtp === $otp) {
-            Cache::forget('otp_' . $userId);
+            Cache::forget($cachedOtpId);
             return successMessage(
                 data: [
                     'success' => true,
@@ -184,7 +183,11 @@ class UserController extends Controller
             );
         }
 
-        return successMessage(data: ['user_info' => $info]);
+        return successMessage(
+            data: [
+                'user_info' => $info
+            ]
+        );
     }
 
     public function forgetPassword(Request $request)
