@@ -14,15 +14,17 @@ Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodos
 Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
 
 Route::post('loginOrSignUp', [UserController::class, 'loginOrSignUp'])->name('loginOrSignUp');
+Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
+Route::post('verifyPasswordOtp', [UserController::class, 'verifyPasswordOtp'])->name('verifyPasswordOtp');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('createOtp', [UserController::class, 'createOtp'])->name('createOtp');
     Route::post('verifyOtp', [UserController::class, 'verifyOtp'])->name('verifyOtp');
     Route::post('updateUserDetails', [UserController::class, 'updateUserDetails'])->name('updateUserDetails');
     Route::post('getUserDetail', [UserController::class, 'getUserDetail'])->name('getUserDetail');
+    Route::post('updatePassword', [UserController::class, 'updatePassword'])->name('updatePassword');
 });
 
 
 
-Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
 Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');

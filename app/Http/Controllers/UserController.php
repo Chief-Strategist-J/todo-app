@@ -36,8 +36,10 @@ class UserController extends Controller
 
             if (!is_null($user)) {
                 $authenticated = Auth::attempt($credentials);
-                if ($authenticated)
+                if ($authenticated) {
                     return $this->generateLoginResponse($user, true, isSignUp: $isSignUp);
+                }
+
                 errorMsg(message: 'User exists but the password is incorrect. Please check again');
             }
 
@@ -53,7 +55,6 @@ class UserController extends Controller
                 ['user_id' => $user->id],
                 ['email' => $credentials['email']]
             );
-
 
             return $this->generateLoginResponse($user, isSignUp: $isSignUp);
         } catch (Throwable $e) {
@@ -78,25 +79,13 @@ class UserController extends Controller
         $cachedOtp = Cache::get($cachedOtpId);
 
         if ($cachedOtp) {
-            return successMessage(
-                data: [
-                    'success' => true,
-                    'message' => 'OTP exists and is valid.',
-                    'otp' => $cachedOtp,
-                ]
-            );
+            return $this->otpIsSended($cachedOtp);
         }
 
         $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
         Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
 
-        return successMessage(
-            data: [
-                'success' => true,
-                'message' => 'OTP created and sent successfully.',
-                'otp' => $otp,
-            ]
-        );
+        return $this->otpIsSended($otp);
     }
 
     public function verifyOtp(UpdateUserDetailRequest $request): JsonResponse
@@ -125,12 +114,7 @@ class UserController extends Controller
             );
         }
 
-        return successMessage(
-            data: [
-                'success' => false,
-                'message' => 'OTP verification failed.',
-            ]
-        );
+        return $this->otpVerificationFailed();
     }
 
     public function updateUserDetails(UpdateUserDetailRequest $request): JsonResponse
@@ -175,29 +159,115 @@ class UserController extends Controller
         });
 
         if (is_null($info)) {
-            return successMessage(
-                data: [
-                    'user_info' => [],
-                    'message' => 'No details fond for this user'
-                ]
-            );
+            return $this->userNotFound();
         }
+
+        return successMessage(data: ['user_info' => $info]);
+    }
+
+
+
+    public function updatePassword(Request $request)
+    {
+        $email = $request->input('email');
+        $password = $request->input('password');
+
+        $user = User::where('email', $email)->first();
+
+        if (is_null($user)) {
+            return $this->userNotFound();
+        }
+
+        $user->password = Hash::make($password);
+        $user->save();
 
         return successMessage(
             data: [
-                'user_info' => $info
+                'success' => true,
+                'message' => 'Password updated successfully.',
+            ],
+        );
+    }
+
+    public function forgetPassword(Request $request): JsonResponse
+    {
+
+        $email = $request->input('email');
+        $user = UserDetail::where('email', $email)->first();
+
+        if (is_null($user)) {
+            return $this->userNotFound();
+        }
+
+        $cachedOtpId = '_otp_for_forgetPassword_' . $email;
+        $cachedOtp = Cache::get($cachedOtpId);
+
+        if ($cachedOtp) return $this->otpIsSended($cachedOtp);
+
+        $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
+        Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
+
+        return $this->otpIsSended($otp);
+    }
+
+    public function verifyPasswordOtp(Request $request): JsonResponse
+    {
+        $request->validate(['otp' => 'required|digits:6']);
+
+        $email = $request->input('email');
+        $otp = $request->input('otp');
+
+        $cachedOtpId = '_otp_for_forgetPassword_' . $email;
+        $cachedOtp = Cache::get($cachedOtpId);
+
+        if ($cachedOtp && $cachedOtp === $otp) {
+            Cache::forget($cachedOtpId);
+
+            $user = User::where('email', $email)->first();
+            $userDetail = UserDetail::where('email', $email)->first();
+
+            return successMessage(
+                data: [
+                    'success' => true,
+                    'message' => 'OTP is verified.',
+                    'access_token' => 'Bearer ' . $user->createToken('auth_token')->plainTextToken,
+                    'data' => $userDetail,
+                ],
+            );
+        }
+
+        return $this->otpVerificationFailed();
+    }
+
+    private function userNotFound()
+    {
+        return successMessage(
+            data: [
+                'success' => false,
+                'message' => 'User not found.',
             ]
         );
     }
 
-    public function forgetPassword(Request $request)
+    private function otpIsSended($otp): JsonResponse
     {
-        //
+        return successMessage(
+            data: [
+                'success' => true,
+                'message' => 'OTP Is Sent Successfully.',
+                'otp' => $otp,
+            ]
+        );
     }
 
-    public function resetPassword()
+    private function otpVerificationFailed(): JsonResponse
     {
-        //
+        return successMessage(
+            data: [
+                'success' => false,
+                'message' => 'OTP Verification Failed.',
+            ]
+        );
     }
 
     private function generateLoginResponse(User $user, bool $isAuthenticated = false, bool $isSignUp = false): JsonResponse
@@ -216,7 +286,7 @@ class UserController extends Controller
             status: 403,
             data: [
                 'user_info' => [],
-                'message' => 'User ID and bearer token mismatch.'
+                'message' => 'User ID and Bearer Token Mismatch.'
             ],
         );
     }
