@@ -174,9 +174,7 @@ class UserController extends Controller
 
         $user = User::where('email', $email)->first();
 
-        if (is_null($user)) {
-            return $this->userNotFound();
-        }
+        if (is_null($user)) return $this->userNotFound();
 
         $user->password = Hash::make($password);
         $user->save();
@@ -195,10 +193,8 @@ class UserController extends Controller
         $email = $request->input('email');
         $user = UserDetail::where('email', $email)->first();
 
-        if (is_null($user)) {
-            return $this->userNotFound();
-        }
-
+        if (is_null($user)) return $this->userNotFound();
+        
         $cachedOtpId = '_otp_for_forgetPassword_' . $email;
         $cachedOtp = Cache::get($cachedOtpId);
 
