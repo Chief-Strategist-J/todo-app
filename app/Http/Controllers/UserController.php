@@ -68,171 +68,213 @@ class UserController extends Controller
 
     public function createOtp(UpdateUserDetailRequest $request): JsonResponse
     {
-        $user = $request->user();
-        $userId = $request->input('user_id');
+        try {
+            $user = $request->user();
+            $userId = $request->input('user_id');
 
-        if ($user && $userId && $user->id != $userId) {
-            return $this->bearerNotMatched($request);
+            if ($user && $userId && $user->id != $userId) {
+                return $this->bearerNotMatched($request);
+            }
+
+            $cachedOtpId = '_otp_' . $userId;
+            $cachedOtp = Cache::get($cachedOtpId);
+
+            if ($cachedOtp) {
+                return $this->otpIsSended($cachedOtp);
+            }
+
+            $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
+            Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
+
+            return $this->otpIsSended($otp);
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Creating Otp");
+            throw $e;
         }
-
-        $cachedOtpId = '_otp_' . $userId;
-        $cachedOtp = Cache::get($cachedOtpId);
-
-        if ($cachedOtp) {
-            return $this->otpIsSended($cachedOtp);
-        }
-
-        $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
-        Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
-
-        return $this->otpIsSended($otp);
     }
 
     public function verifyOtp(UpdateUserDetailRequest $request): JsonResponse
     {
-        $user = $request->user();
-        $userId = $request->input('user_id');
+        try {
+            $user = $request->user();
+            $userId = $request->input('user_id');
 
-        if ($user && $userId && $user->id != $userId) {
-            return $this->bearerNotMatched($request);
+            if ($user && $userId && $user->id != $userId) {
+                return $this->bearerNotMatched($request);
+            }
+
+            $request->validate(['otp' => 'required|digits:6']);
+
+            $cachedOtpId = '_otp_' . $userId;
+            $cachedOtp = Cache::get($cachedOtpId);
+            $otp = $request->input('otp');
+
+            if ($cachedOtp && $cachedOtp === $otp) {
+                Cache::forget($cachedOtpId);
+                return successMessage(
+                    data: [
+                        'success' => true,
+                        'message' => 'OTP is verified.',
+                        'otp' => $otp,
+                    ],
+                );
+            }
+
+            return $this->otpVerificationFailed();
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Veryfing Otp");
+            throw $e;
         }
-
-        $request->validate(['otp' => 'required|digits:6']);
-
-        $cachedOtpId = '_otp_' . $userId;
-        $cachedOtp = Cache::get($cachedOtpId);
-        $otp = $request->input('otp');
-
-        if ($cachedOtp && $cachedOtp === $otp) {
-            Cache::forget($cachedOtpId);
-            return successMessage(
-                data: [
-                    'success' => true,
-                    'message' => 'OTP is verified.',
-                    'otp' => $otp,
-                ],
-            );
-        }
-
-        return $this->otpVerificationFailed();
     }
 
     public function updateUserDetails(UpdateUserDetailRequest $request): JsonResponse
     {
-        $user = $request->user();
-        $userId = $request->input('user_id');
+        try {
+            $user = $request->user();
+            $userId = $request->input('user_id');
 
-        if ($user && $userId && $user->id != $userId) {
-            return $this->bearerNotMatched($request);
+            if ($user && $userId && $user->id != $userId) {
+                return $this->bearerNotMatched($request);
+            }
+
+            $fields = [
+                'first_name', 'last_name', 'phone', 'birthdate', 'address', 'city',
+                'state', 'country', 'zipcode', 'avatar', 'bio', 'is_active', 'user_id',
+                'firebase_user_details_id '
+            ];
+
+            $cacheKey = '_user_detail_' . $userId;
+            Cache::forget($cacheKey);
+            $userDetail = UserDetail::updateOrCreate(
+                ['user_id' => $request->input('user_id')],
+                collect($request->only($fields))->filter()->all()
+            );
+
+            return successMessage(data: ['user_info' => $userDetail]);
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Updating User Details");
+            throw $e;
         }
-
-        $fields = [
-            'first_name', 'last_name', 'phone', 'birthdate', 'address', 'city',
-            'state', 'country', 'zipcode', 'avatar', 'bio', 'is_active', 'user_id',
-            'firebase_user_details_id '
-        ];
-
-        $cacheKey = '_user_detail_' . $userId;
-        Cache::forget($cacheKey);
-        $userDetail = UserDetail::updateOrCreate(
-            ['user_id' => $request->input('user_id')],
-            collect($request->only($fields))->filter()->all()
-        );
-
-        return successMessage(data: ['user_info' => $userDetail]);
     }
 
 
     public function getUserDetail(UpdateUserDetailRequest $request): JsonResponse
     {
 
-        $user = $request->user();
-        $userId = $request->input('user_id');
+        try {
+            $user = $request->user();
+            $userId = $request->input('user_id');
 
-        if ($user && $userId && $user->id != $userId) {
-            return $this->bearerNotMatched($request);
+            if ($user && $userId && $user->id != $userId) {
+                return $this->bearerNotMatched($request);
+            }
+
+            $cacheKey = '_user_detail_' . $userId;
+            $info = Cache::remember($cacheKey, now()->addWeek(), function () use ($userId) {
+                return UserDetail::find($userId);
+            });
+
+            if (is_null($info)) {
+                return $this->userNotFound();
+            }
+
+            return successMessage(data: ['user_info' => $info]);
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Getting User Details");
+            throw $e;
         }
-
-        $cacheKey = '_user_detail_' . $userId;
-        $info = Cache::remember($cacheKey, now()->addWeek(), function () use ($userId) {
-            return UserDetail::find($userId);
-        });
-
-        if (is_null($info)) {
-            return $this->userNotFound();
-        }
-
-        return successMessage(data: ['user_info' => $info]);
     }
 
 
 
     public function updatePassword(Request $request)
     {
-        $email = $request->input('email');
-        $password = $request->input('password');
+        try {
+            $email = $request->input('email');
+            $password = $request->input('password');
 
-        $user = User::where('email', $email)->first();
+            $user = User::where('email', $email)->first();
 
-        if (is_null($user)) return $this->userNotFound();
+            if (is_null($user)) return $this->userNotFound();
 
-        $user->password = Hash::make($password);
-        $user->save();
+            $user->password = Hash::make($password);
+            $user->save();
 
-        return successMessage(
-            data: [
-                'success' => true,
-                'message' => 'Password updated successfully.',
-            ],
-        );
+            return successMessage(
+                data: [
+                    'success' => true,
+                    'message' => 'Password updated successfully.',
+                ],
+            );
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Updating Password");
+            throw $e;
+        }
     }
 
     public function forgetPassword(Request $request): JsonResponse
     {
 
-        $email = $request->input('email');
-        $user = UserDetail::where('email', $email)->first();
+        try {
+            $email = $request->input('email');
+            $user = UserDetail::where('email', $email)->first();
 
-        if (is_null($user)) return $this->userNotFound();
-        
-        $cachedOtpId = '_otp_for_forgetPassword_' . $email;
-        $cachedOtp = Cache::get($cachedOtpId);
+            if (is_null($user)) return $this->userNotFound();
 
-        if ($cachedOtp) return $this->otpIsSended($cachedOtp);
+            $cachedOtpId = '_otp_for_forgetPassword_' . $email;
+            $cachedOtp = Cache::get($cachedOtpId);
 
-        $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
-        Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
+            if ($cachedOtp) return $this->otpIsSended($cachedOtp);
 
-        return $this->otpIsSended($otp);
+            $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
+            Cache::put($cachedOtpId, $otp, now()->addMinutes(2));
+
+            return $this->otpIsSended($otp);
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Forgetting Password");
+            throw $e;
+        }
     }
 
     public function verifyPasswordOtp(Request $request): JsonResponse
     {
-        $request->validate(['otp' => 'required|digits:6']);
+        try {
+            $request->validate(['otp' => 'required|digits:6']);
 
-        $email = $request->input('email');
-        $otp = $request->input('otp');
+            $email = $request->input('email');
+            $otp = $request->input('otp');
 
-        $cachedOtpId = '_otp_for_forgetPassword_' . $email;
-        $cachedOtp = Cache::get($cachedOtpId);
+            $cachedOtpId = '_otp_for_forgetPassword_' . $email;
+            $cachedOtp = Cache::get($cachedOtpId);
 
-        if ($cachedOtp && $cachedOtp === $otp) {
-            Cache::forget($cachedOtpId);
+            if ($cachedOtp && $cachedOtp === $otp) {
+                Cache::forget($cachedOtpId);
 
-            $user = User::where('email', $email)->first();
-            $userDetail = UserDetail::where('email', $email)->first();
+                $user = User::where('email', $email)->first();
+                $userDetail = UserDetail::where('email', $email)->first();
 
-            return successMessage(
-                data: [
-                    'success' => true,
-                    'message' => 'OTP is verified.',
-                    'access_token' => 'Bearer ' . $user->createToken('auth_token')->plainTextToken,
-                    'data' => $userDetail,
-                ],
-            );
+                return successMessage(
+                    data: [
+                        'success' => true,
+                        'message' => 'OTP is verified.',
+                        'access_token' => 'Bearer ' . $user->createToken('auth_token')->plainTextToken,
+                        'data' => $userDetail,
+                    ],
+                );
+            }
+
+            return $this->otpVerificationFailed();
+        } catch (Throwable $e) {
+            report($e);
+            Log::info("Error While Verifing Password");
+            throw $e;
         }
-
-        return $this->otpVerificationFailed();
     }
 
     private function userNotFound()

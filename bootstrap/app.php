@@ -6,6 +6,9 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 
+use function App\Helper\errorMsg;
+use function App\Helper\successMessage;
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__ . '/../routes/web.php',
@@ -19,9 +22,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions) {
 
         $exceptions->renderable(function (RouteNotFoundException $e) {
-            return response()->json([
-                'message' => 'Record not found or bearer token is missing.',
-                'data' => $e->getMessage()
-            ], 404);
+            return   successMessage(
+                status: 401,
+                data: [
+                    'success' => false,
+                    'message' => 'Record not found or bearer token is missing.',
+                ],
+
+            );
         });
     })->create();

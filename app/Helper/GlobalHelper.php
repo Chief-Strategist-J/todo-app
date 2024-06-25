@@ -5,12 +5,12 @@ namespace App\Helper;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 
-function errorMsg($message, int $statusCode = 422): void
+function errorMsg($message, int $statusCode = 422,$data = []): void
 {
     throw new HttpResponseException(response()->json([
         'success' => false,
         'message' => $message,
-        'data' => []
+        'data' => $data
     ], $statusCode));
 }
 
