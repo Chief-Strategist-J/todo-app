@@ -35,7 +35,6 @@ class UserLoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:20',
             'password' => 'required|string',
             'is_sign_up' => 'required|nullable|boolean',
             'email' => [

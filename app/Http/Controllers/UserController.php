@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Throwable;
@@ -37,6 +38,9 @@ class UserController extends Controller
             if (!is_null($user)) {
                 $authenticated = Auth::attempt($credentials);
                 if ($authenticated) {
+
+                    $this->sendWelcomeNotification(title: "Welcome", message: 'Welcome back to Todo!', emails: $credentials['email']);
+
                     return $this->generateLoginResponse($user, true, isSignUp: $isSignUp);
                 }
 
@@ -44,12 +48,14 @@ class UserController extends Controller
             }
 
             $registerUser = [
-                'name' => $request->input('name'),
+                'name' => $credentials['email'],
                 'email' => $credentials['email'],
                 'password' => Hash::make($credentials['password']),
             ];
 
             $user = User::create($registerUser);
+
+            $this->sendWelcomeNotification(title: "Welcome", message: 'Welcome to Todo for the first time!', emails: $credentials['email']);
 
             $userDetail = UserDetail::updateOrCreate(
                 ['user_id' => $user->id],
@@ -64,6 +70,33 @@ class UserController extends Controller
         }
     }
 
+    public function sendWelcomeNotification($title, $message, $emails)
+    {
+
+        $url = 'https://onesignal.com/api/v1/notifications';
+
+        $header = [
+            'Authorization' => 'Basic ' . env('ONE_SIGNAL_REST_KEY'),
+            'Content-Type' => 'application/json',
+        ];
+
+        $req = [
+            'app_id' => env('ONE_SIGNAL_APP_ID'),
+            'headings' => ['en' => $title],
+            'contents' => ['en' => $message],
+            'filters' => [
+                [
+                    'field' => 'tag',
+                    'key' => 'email',
+                    'relation' => '=',
+                    'value' => $emails,
+                ],
+            ],
+
+        ];
+
+        Http::withHeaders($header)->post($url, $req);
+    }
 
 
     public function createOtp(UpdateUserDetailRequest $request): JsonResponse
