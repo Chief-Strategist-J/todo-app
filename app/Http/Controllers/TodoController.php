@@ -67,6 +67,7 @@ class TodoController extends Controller
         } catch (Throwable $e) {
             report($e);
             return errorMsg(message: $e->getMessage());
+            
         }
     }
 

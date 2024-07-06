@@ -7,7 +7,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 
-function errorMsg($message, int $statusCode = 422, $data = []): void
+function errorMsg($message, int $statusCode = 422, $data = []): JsonResponse
 {
     throw new HttpResponseException(response()->json([
         'success' => false,
