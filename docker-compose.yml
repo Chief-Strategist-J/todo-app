@@ -1,0 +1,41 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: todo-application-apache
+    container_name: laravel-app-apache
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - app-network
+    environment:
+      - "DB_HOST=db"
+      - "DB_DATABASE=TodoDatabase"
+      - "DB_USERNAME=TodoUser"
+      - "DB_PASSWORD=Todo@123"
+
+  db:
+    image: mysql:8.0
+    container_name: laravel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: TodoDatabase
+      MYSQL_ROOT_PASSWORD: Scaibu@123
+      MYSQL_PASSWORD: Todo@123
+      MYSQL_USER: TodoUser  # This should be a non-root user
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  dbdata:
