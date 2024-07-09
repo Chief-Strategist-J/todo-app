@@ -14,7 +14,7 @@ class UserEducation extends Model
     protected $fillable = [
         'firebase_user_education_id', 'user_detail_id', 'user_id', 'institution_name', 'degree', 'field_of_study', 'start_date', 'end_date',
         'grade', 'currently_studying', 'location', 'activities', 'achievements', 'is_verified', 'major', 'minor', 'advisor', 'thesis_title',
-        'honors', 'study_mode', 'description', 'transcript_url', 'certification', 'is_completed', 'institution_website', 'notes'
+        'honors', 'study_mode', 'description', 'transcript_url', 'certification', 'is_completed', 'institution_website', 'notes' 
     ];
 
     protected $casts = [
