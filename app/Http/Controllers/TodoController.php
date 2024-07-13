@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
+use App\Jobs\SendNotificationJob;
 use App\Models\Todo;
 use App\Models\User;
 use Carbon\Carbon;
@@ -35,7 +36,7 @@ class TodoController extends Controller
     {
         try {
             $createdBy = $request->input('created_by');
- 
+
             $cacheKey = 'user_' . $createdBy;
 
             $user = Cache::remember($cacheKey, now()->addWeek(), function () use ($createdBy) {
@@ -59,15 +60,18 @@ class TodoController extends Controller
             $startMessage = "A gentle reminder: your task '$title' is scheduled to start at $startTimeFormatted.";
             $endMessage = "A gentle reminder: your task '$title' is scheduled to end at $endTimeFormatted.";
 
-            sendNotification(title: $title, message: $startMessage, emails: $email, scheduledTime: $startTime);
-            sendNotification(title: $title, message: $message, emails: $email);
-            sendNotification(title: $title, message: $endMessage, emails: $email, scheduledTime: $endTime);
+            SendNotificationJob::dispatch($title, $startMessage, $email, $startTime);
+            SendNotificationJob::dispatch($title, $message, $email);
+            SendNotificationJob::dispatch($title, $endMessage, $email, $endTime);
+
+            // sendNotification(title: $title, message: $startMessage, emails: $email, scheduledTime: $startTime);
+            // sendNotification(title: $title, message: $message, emails: $email);
+            // sendNotification(title: $title, message: $endMessage, emails: $email, scheduledTime: $endTime);
 
             return resolve(Todo::class)->createTodo(request: $request);
         } catch (Throwable $e) {
             report($e);
             return errorMsg(message: $e->getMessage());
-            
         }
     }
 
@@ -90,7 +94,6 @@ class TodoController extends Controller
         }
 
         return response()->json($data);
-
     }
 
 

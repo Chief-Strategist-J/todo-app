@@ -147,7 +147,7 @@ class Todo extends Model
     public function getTodoList(): Collection
     {
         $minutesInWeek = 7 * 24 * 60;
-        $fields = ['id', 'title', ' ', 'notes', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
+        $fields = ['id', 'title', 'notes', 'created_by','firebase_todo_id', 'start_time', 'end_time', 'date'];
 
         return Cache::remember(Todo::cacheKeyForTodoList, $minutesInWeek, function () use ($fields) {
             return Todo::select($fields)->get();
