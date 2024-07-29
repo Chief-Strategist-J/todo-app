@@ -136,12 +136,15 @@ class Todo extends Model
         $todo->save();
 
         $this->clearTodoListCache();
-        
-        Log::info($todo->id);
 
-        Log::info($request->input('end_time'));
-        DeleteExpiredTodoJob::dispatch($todo->id)->delay(getIndianTime($request->input('end_time')));
-        Log::info('DeleteExpiredTodoJob');
+
+
+
+        if ($request->input('is_want_to_delete_todo_at_end_time')) {
+            Log::info('todo will be deleed at end time');
+            DeleteExpiredTodoJob::dispatch($todo->id)->delay(getIndianTime($request->input('end_time')));
+        }
+
 
         return successMessage(
             data: [
