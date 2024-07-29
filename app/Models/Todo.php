@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
+use App\Jobs\DeleteExpiredTodoJob;
 use App\Jobs\FetchPaginatedTodos;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 
+use function App\Helper\getIndianTime;
 use function App\Helper\successMessage;
 
 class Todo extends Model
@@ -133,6 +136,12 @@ class Todo extends Model
         $todo->save();
 
         $this->clearTodoListCache();
+        
+        Log::info($todo->id);
+
+        Log::info($request->input('end_time'));
+        DeleteExpiredTodoJob::dispatch($todo->id)->delay(getIndianTime($request->input('end_time')));
+        Log::info('DeleteExpiredTodoJob');
 
         return successMessage(
             data: [
@@ -147,7 +156,7 @@ class Todo extends Model
     public function getTodoList(): Collection
     {
         $minutesInWeek = 7 * 24 * 60;
-        $fields = ['id', 'title', 'notes', 'created_by','firebase_todo_id', 'start_time', 'end_time', 'date'];
+        $fields = ['id', 'title', 'notes', 'created_by', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
 
         return Cache::remember(Todo::cacheKeyForTodoList, $minutesInWeek, function () use ($fields) {
             return Todo::select($fields)->get();

@@ -78,3 +78,10 @@ function sendNotification($title, $message, $emails, $scheduledTime = null, $tod
 
     Http::withHeaders($header)->post($url, $req);
 }
+
+function getIndianTime($time)
+{
+
+    $scheduledTimeIST = Carbon::parse($time, 'Asia/Kolkata');
+    return $scheduledTimeIST->setTimezone('UTC');
+}

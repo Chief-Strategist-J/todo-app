@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
+use App\Jobs\DeleteExpiredTodoJob;
 use App\Jobs\SendNotificationJob;
 use App\Models\Todo;
 use App\Models\User;
 use Carbon\Carbon;
 use DateTime;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -17,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Factory;
 use Throwable;
 use function App\Helper\errorMsg;
+use function App\Helper\getIndianTime;
 use function App\Helper\sendNotification;
 use function App\Helper\successMessage;
 
@@ -64,10 +67,6 @@ class TodoController extends Controller
             SendNotificationJob::dispatch($title, $message, $email);
             SendNotificationJob::dispatch($title, $endMessage, $email, $endTime);
 
-            // sendNotification(title: $title, message: $startMessage, emails: $email, scheduledTime: $startTime);
-            // sendNotification(title: $title, message: $message, emails: $email);
-            // sendNotification(title: $title, message: $endMessage, emails: $email, scheduledTime: $endTime);
-
             return resolve(Todo::class)->createTodo(request: $request);
         } catch (Throwable $e) {
             report($e);
@@ -75,26 +74,17 @@ class TodoController extends Controller
         }
     }
 
-    public function testing()
+    public function testing(Request $request)
     {
-        $factory = (new Factory)->withServiceAccount(env('FIREBASE_CREDENTIALS'));
-        $firestore = $factory->createFirestore();
-        $database = $firestore->database();
+        
 
-        // Example: Read data from a collection
-        $collection = $database->collection('todo');
-        $documents = $collection->documents();
+        DeleteExpiredTodoJob::dispatch('0', '0')->delay(getIndianTime($request->input('end_time')));
 
-        $data = [];
-
-        foreach ($documents as $document) {
-            if ($document->exists()) {
-                $data[] = $document->data();
-            }
-        }
-
-        return response()->json($data);
+        return response()->json([
+            'message' => 'done',
+        ]);
     }
+
 
 
     public function updateTodo(UpdateTodoRequest $request): JsonResponse
