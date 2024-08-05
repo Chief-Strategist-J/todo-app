@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->string('description')->nullable();
-            $table->boolean('is_completed')->default(false);
+            $table->boolean('is_completed')->default(false);    
             $table->dateTime('due_date')->nullable();
             
             $table->dateTime('start_time')->nullable();

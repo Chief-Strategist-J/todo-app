@@ -4,23 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
-use App\Jobs\DeleteExpiredTodoJob;
 use App\Jobs\SendNotificationJob;
 use App\Models\Todo;
 use App\Models\User;
-use Carbon\Carbon;
-use DateTime;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Kreait\Firebase\Factory;
 use Throwable;
 use function App\Helper\errorMsg;
 use function App\Helper\getIndianTime;
-use function App\Helper\sendNotification;
 use function App\Helper\successMessage;
 
 class TodoController extends Controller
@@ -63,11 +55,20 @@ class TodoController extends Controller
             $startMessage = "A gentle reminder: your task '$title' is scheduled to start at $startTimeFormatted.";
             $endMessage = "A gentle reminder: your task '$title' is scheduled to end at $endTimeFormatted.";
 
-            SendNotificationJob::dispatch($title, $startMessage, $email, $startTime);
-            SendNotificationJob::dispatch($title, $message, $email);
-            SendNotificationJob::dispatch($title, $endMessage, $email, $endTime);
+            $todo = resolve(Todo::class)->createTodo(request: $request);
 
-            return resolve(Todo::class)->createTodo(request: $request);
+            SendNotificationJob::dispatch($todo->id, $title, $startMessage, $email, $startTime)->delay(getIndianTime($request->input('start_time')));
+            SendNotificationJob::dispatch($todo->id, $title, $message, $email);
+            SendNotificationJob::dispatch($todo->id, $title, $endMessage, $email, $endTime)->delay(getIndianTime($request->input('end_time')));
+
+            return successMessage(
+                data: [
+                    'id' => $todo->id,
+                    'title' => $todo->title,
+                    'description' => $todo->description,
+                    'notes' => $todo->notes
+                ]
+            );
         } catch (Throwable $e) {
             report($e);
             return errorMsg(message: $e->getMessage());
@@ -76,10 +77,6 @@ class TodoController extends Controller
 
     public function testing(Request $request)
     {
-        
-
-        DeleteExpiredTodoJob::dispatch('0', '0')->delay(getIndianTime($request->input('end_time')));
-
         return response()->json([
             'message' => 'done',
         ]);
@@ -90,8 +87,6 @@ class TodoController extends Controller
     public function updateTodo(UpdateTodoRequest $request): JsonResponse
     {
         try {
-
-            // Check if user exists
             return resolve(Todo::class)->updateTodo(request: $request);
         } catch (Throwable $e) {
             report($e);
@@ -108,9 +103,13 @@ class TodoController extends Controller
     {
         try {
             $todo = Todo::find($request->input("todo_id"));
-            $todo->delete();
 
-            return successMessage(data: 'TODO ID: ' . $request->input("todo_id") . ' is deleted from record');
+            if ($todo) {
+                $todo->delete();
+                return successMessage(data: 'TODO ID: ' . $request->input("todo_id") . ' is deleted from record');
+            } else {
+                return successMessage(data: 'TODO ID: ' . $request->input("todo_id") . ' is not in record   ');
+            }
         } catch (Throwable $e) {
             report($e);
             return errorMsg(message: $e->getTrace());

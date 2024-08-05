@@ -127,7 +127,7 @@ class Todo extends Model
         return successMessage(data: $todo);
     }
 
-    public function createTodo(StoreTodoRequest $request): JsonResponse
+    public function createTodo(StoreTodoRequest $request): Todo
     {
         $todo = new Todo();
 
@@ -137,23 +137,13 @@ class Todo extends Model
 
         $this->clearTodoListCache();
 
-
-
-
         if ($request->input('is_want_to_delete_todo_at_end_time')) {
-            Log::info('todo will be deleed at end time');
             DeleteExpiredTodoJob::dispatch($todo->id)->delay(getIndianTime($request->input('end_time')));
         }
 
+        return $todo;
 
-        return successMessage(
-            data: [
-                'id' => $todo->id,
-                'title' => $todo->title,
-                'description' => $todo->description,
-                'notes' => $todo->notes
-            ]
-        );
+        
     }
 
     public function getTodoList(): Collection

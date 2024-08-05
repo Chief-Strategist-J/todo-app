@@ -83,5 +83,6 @@ function getIndianTime($time)
 {
 
     $scheduledTimeIST = Carbon::parse($time, 'Asia/Kolkata');
-    return $scheduledTimeIST->setTimezone('UTC');
+    $adjustedTime = $scheduledTimeIST->subMinutes(2);
+    return $adjustedTime->setTimezone('UTC');
 }
