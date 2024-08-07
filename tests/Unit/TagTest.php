@@ -5,6 +5,7 @@ use App\Models\Todo;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -401,6 +402,200 @@ class TagTest extends TestCase
 
         // Assert: Should return an empty collection
         $this->assertCount(0, $result);
+    }
+
+    public function testItFetchesPopularTagsWithDefaultPagination()
+    {
+        Tag::factory()->count(100)->create();
+
+        $tags = (new Tag)->getPopularTags();
+
+        $this->assertNotEmpty($tags);
+        $this->assertCount(50, $tags);
+    }
+
+    public function testItCachesThePopularTagsQuery()
+    {
+        Tag::factory()->count(50)->create();
+
+        $tags = (new Tag)->getPopularTags();
+
+        $this->assertTrue(Cache::has('popular_tags_1'));
+    }
+
+    public function testItInvalidatesCacheWhenTagIsSaved()
+    {
+        $tag = Tag::factory()->create(['popularity_score' => 100]);
+
+        $tag->update(['popularity_score' => 200]);
+
+        $this->assertFalse(Cache::has('popular_tags_1'));
+    }
+
+    public function testItInvalidatesCacheWhenTagIsDeleted()
+    {
+        $tag = Tag::factory()->create(['popularity_score' => 100]);
+
+
+        $tag->delete();
+
+        $this->assertFalse(Cache::has('popular_tags_1'));
+    }
+
+    public function testItthrowsInvalidArgumentExceptionForInvalidLimit()
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new Tag)->getPopularTags(-10);
+    }
+
+    public function testItFetchesUserTagsWithDefaultPagination()
+    {
+        $user = User::factory()->create();
+        Tag::factory()->count(100)->create(['created_by' => $user->id]);
+
+        $tags = (new Tag)->getUserTags($user->id);
+
+        $this->assertNotEmpty($tags);
+        $this->assertCount(50, $tags);
+    }
+
+    public function testItCachesTheUserTagsQuery()
+    {
+        $user = User::factory()->create();
+        Tag::factory()->count(50)->create(['created_by' => $user->id]);
+
+        $tags = (new Tag)->getUserTags($user->id);
+
+        $this->assertTrue(Cache::has('user_tags_' . $user->id . '_1'));
+    }
+
+    public function testItInvalidatesCacheWhenTagForUserTagQueryIsSaved()
+    {
+        $user = User::factory()->create();
+        $tag = Tag::factory()->create(['created_by' => $user->id]);
+
+        $tag->update(['name' => 'Updated Name']);
+
+        $this->assertFalse(Cache::has('user_tags_' . $user->id . '_1'));
+    }
+
+    public function testItInvalidatesCacheWhenTagUserTagQueryIsDeleted()
+    {
+        $user = User::factory()->create();
+        $tag = Tag::factory()->create(['created_by' => $user->id]);
+
+        $tag->delete();
+
+        $this->assertFalse(Cache::has('user_tags_' . $user->id . '_1'));
+    }
+
+    public function testItThrowsInvalidArgumentExceptionForInvalidLimitTagQuery()
+    {
+        $user = User::factory()->create();
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new Tag)->getUserTags($user->id, -10);
+    }
+
+    public function testFetchesTagsWithDefaultPagination()
+    {
+        Tag::factory()->count(100)->create();
+
+        $request = new Request();
+        $tags = (new Tag)->searchTags($request);
+
+        $this->assertNotEmpty($tags);
+        $this->assertCount(50, $tags);
+    }
+
+    public function testAppliesNameFilter()
+    {
+        Tag::factory()->create(['name' => 'SpecificTag']);
+        Tag::factory()->count(10)->create();
+
+        $request = new Request(['name' => 'SpecificTag']);
+        $tags = (new Tag)->searchTags($request);
+
+        $this->assertCount(1, $tags);
+        $this->assertEquals('SpecificTag', $tags[0]->name);
+    }
+
+    public function testAppliesTagTypeFilter()
+    {
+        Tag::factory()->create(['tag_type' => 'SpecificType']);
+        Tag::factory()->count(10)->create();
+
+        $request = new Request(['tag_type' => 'SpecificType']);
+        $tags = (new Tag)->searchTags($request);
+
+        $this->assertCount(1, $tags);
+        $this->assertEquals('SpecificType', $tags[0]->tag_type);
+    }
+
+    public function testAppliesIsActiveFilter()
+    {
+        $inactiveTag = Tag::factory()->create(['is_active' => false]);
+
+        Tag::factory()->create(['is_active' => true]);
+
+        $request = new Request(['is_active' => false]);
+        $tags = (new Tag)->searchTags($request);
+
+        $this->assertCount(1, $tags);
+        $this->assertFalse((bool) $tags[0]->is_active); // Ensure proper boolean context is used
+        $this->assertEquals($inactiveTag->id, $tags[0]->id);
+    }
+
+
+    public function testHandlesModelNotFoundException()
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        $request = new Request(['name' => 'NonExistentTag']);
+        (new Tag)->searchTags($request);
+    }
+
+    public function testGetInactiveTagsReturnsInactiveTags()
+    {
+        Tag::factory()->create(['is_active' => false]);
+        Tag::factory()->create(['is_active' => true]);
+
+        $request = new Request();
+        $tags = (new Tag)->getInactiveTags($request);
+
+        $this->assertCount(1, $tags);
+        $this->assertFalse((bool) $tags[0]->is_active); // Ensure proper boolean context is used
+    }
+
+    public function testGetInactiveTagsHandlesNoResults()
+    {
+        $request = new Request();
+        $this->expectException(ModelNotFoundException::class);
+
+        (new Tag)->getInactiveTags($request);
+    }
+
+    public function testGetInactiveTagsHandlesInvalidArgument()
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        // Sending an invalid value for is_active
+        $request = new Request(['is_active' => 'invalid']);
+        (new Tag)->getInactiveTags($request);
+    }
+
+
+    public function testGetInactiveTagsPagination()
+    {
+        Tag::factory()->count(60)->create(['is_active' => false]);
+
+        $request = new Request();
+        $tags = (new Tag)->getInactiveTags($request);
+
+        $this->assertCount(50, $tags);
+        $this->assertTrue(count($tags) > 0);
     }
 
 }

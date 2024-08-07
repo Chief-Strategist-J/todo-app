@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Exception;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -67,15 +70,22 @@ class Tag extends Model
         parent::boot();
 
         static::created(function ($tag) {
-            self::clearCache($tag->todo_id);
+            Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
+            Cache::forget('popular_tags_' . $tag->id);
+            Cache::tags(['user_tags'])->flush();
         });
 
         static::updated(function ($tag) {
-            self::clearCache($tag->todo_id);
+            Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
+            Cache::forget('popular_tags_' . $tag->id);
+            Cache::tags(['user_tags'])->flush();
         });
 
         static::deleted(function ($tag) {
-            self::clearCache($tag->todo_id);
+            Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
+            Cache::forget('popular_tags_' . $tag->id);
+            Cache::tags(['user_tags'])->flush();
+
         });
     }
 
@@ -153,7 +163,6 @@ class Tag extends Model
         ];
 
         $tagId = $request->input('id');
-
         $tag = DB::table('tags')->where('id', $tagId)->first();
 
         foreach ($fillable as $field) {
@@ -169,9 +178,6 @@ class Tag extends Model
     {
         return DB::table('tags')->where('id', $id)->delete();
     }
-
-
-
 
     public function getTagsByTaskId($taskId, $page = 1)
     {
@@ -204,49 +210,120 @@ class Tag extends Model
         return $results;
     }
 
-
-    protected static function clearCache($taskId)
+    public function getPopularTags($limit = 50, $page = 1): array
     {
-        Cache::forget("tags_for_task_{$taskId}_page_1");
-    }
-
-
-    public function getPopularTags($limit = 10): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'popularity_score')
-            ->orderBy('popularity_score', 'desc')
-            ->limit($limit)
-            ->get();
-    }
-
-    public function getTagsByUser($userId): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'created_by')->where('created_by', $userId)->get();
-    }
-
-    public function searchTags(Request $request): Collection
-    {
-        $query = DB::table('tags')->select('id', 'name', 'slug', 'tag_type', 'is_active');
-
-        if ($request->has('name')) {
-            $query->where('name', 'like', '%' . $request->input('name') . '%');
+        if (!is_numeric($limit) || $limit <= 0 || $limit > 50) {
+            throw new InvalidArgumentException('Limit must be a positive number and less than or equal to 50.');
         }
 
-        if ($request->has('tag_type')) {
-            $query->where('tag_type', $request->input('tag_type'));
-        }
+        $cacheKey = 'popular_tags_' . $page;
 
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->input('is_active'));
-        }
-
-        return $query->get();
+        return Cache::remember($cacheKey, now()->addWeek(), function () use ($limit) {
+            return DB::table('tags')
+                ->select('id', 'name', 'popularity_score')
+                ->whereNull('deleted_at')
+                ->orderBy('popularity_score', 'desc')
+                ->paginate($limit)
+                ->items();
+        });
     }
 
-    public function getInactiveTags(): Collection
+    public function getUserTags(int $userId, int $limit = 50, int $page = 1): array
     {
-        return DB::table('tags')->select('id', 'name', 'is_active')->where('is_active', false)->get();
+        if (!is_numeric($limit) || $limit <= 0 || $limit > 50) {
+            throw new InvalidArgumentException('Limit must be a positive number and less than or equal to 50.');
+        }
+
+        $cacheKey = 'user_tags_' . $userId . '_' . $page;
+
+        try {
+            return Cache::remember($cacheKey, now()->addWeek(), function () use ($userId, $limit) {
+                return DB::table('tags')
+                    ->select('id', 'name', 'created_by')
+                    ->where('created_by', $userId)
+                    ->whereNull('deleted_at')
+                    ->orderBy('created_at', 'desc')
+                    ->paginate($limit)
+                    ->items();
+            });
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('Tags not found for the given user.');
+        } catch (QueryException $e) {
+            throw new QueryException($e->getConnectionName(), $e->getSql(), $e->getBindings(), $e->getPrevious());
+        } catch (Exception $e) {
+            throw new Exception('An unexpected error occurred.');
+        }
     }
+
+    public function searchTags(Request $request): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'slug', 'tag_type', 'is_active')
+                ->whereNull('deleted_at');
+
+            if ($request->has('name')) {
+                $query->where('name', 'like', '%' . $request->input('name') . '%');
+            }
+
+            if ($request->has('tag_type')) {
+                $query->where('tag_type', $request->input('tag_type'));
+            }
+
+            if ($request->has('is_active')) {
+                $query->where('is_active', $request->input('is_active'));
+            }
+
+            $query->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found.');
+            }
+
+            return $result->items();
+
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
+    }
+
+
+    public function getInactiveTags(Request $request): array
+    {
+        try {
+            // Validate request parameters
+            if ($request->has('is_active') && !is_bool($request->input('is_active'))) {
+                throw new InvalidArgumentException('Invalid argument provided.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'is_active')
+                ->where('is_active', false)
+                ->whereNull('deleted_at');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No inactive tags found.');
+            }
+
+            return $result->items();
+        } catch (InvalidArgumentException $e) {
+            throw $e; // Rethrow to preserve the exception message
+        } catch (ModelNotFoundException $e) {
+            throw $e; // Rethrow to preserve the exception message
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching inactive tags.');
+        }
+    }
+
+
 
     public function getTagsByParentId($parentId): Collection
     {

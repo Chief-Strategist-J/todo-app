@@ -53,7 +53,7 @@ class Todo extends Model
         'firebase_todo_id',
         'start_time',
         'end_time',
-        'date',
+        'date'
     ];
 
     protected $casts = [
@@ -84,20 +84,37 @@ class Todo extends Model
         'is_archived' => 'boolean',
     ];
 
-    protected $hidden = [
-        'created_at',
-        'updated_at',
-        'deleted_at',
-    ];
+    protected $hidden = ['created_at', 'updated_at', 'deleted_at'];
 
     private function processTodoFields(Request $request, Todo $todo): void
     {
         $inputFields = [
-            'title', 'description', 'notes', 'due_date', 'priority', 'assigned_to',
-            'tags', 'created_by', 'updated_by', 'status', 'reminder', 'attachment',
-            'category', 'estimated_time', 'actual_time', 'location', 'recurring',
-            'recurring_frequency', 'firebase_todo_id', 'completed_at', 'color_code',
-            'is_archived', 'is_completed', 'start_time', 'end_time', 'date',
+            'title',
+            'description',
+            'notes',
+            'due_date',
+            'priority',
+            'assigned_to',
+            'tags',
+            'created_by',
+            'updated_by',
+            'status',
+            'reminder',
+            'attachment',
+            'category',
+            'estimated_time',
+            'actual_time',
+            'location',
+            'recurring',
+            'recurring_frequency',
+            'firebase_todo_id',
+            'completed_at',
+            'color_code',
+            'is_archived',
+            'is_completed',
+            'start_time',
+            'end_time',
+            'date',
         ];
 
         foreach ($inputFields as $field) {
@@ -118,7 +135,8 @@ class Todo extends Model
     {
         $todo = Todo::find($request->input("todo_id"));
 
-        if (is_null($todo)) return successMessage(data: ['message' => "todo id does not exist"]);
+        if (is_null($todo))
+            return successMessage(data: ['message' => "todo id does not exist"]);
 
         $this->clearTodoListCache();
 
