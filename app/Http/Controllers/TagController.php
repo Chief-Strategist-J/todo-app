@@ -5,62 +5,53 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTagRequest;
 use App\Http\Requests\UpdateTagRequest;
 use App\Models\Tag;
+use Illuminate\Http\Request;
+
 
 class TagController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function getAllTags(Request $request)
     {
-        //
+
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function createTag(Request $request)
     {
-        //
+
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreTagRequest $request)
+    public function updateTag(Request $request, $id)
     {
-        //
+
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Tag $tag)
+    public function deleteTag(Request $request, $id)
     {
-        //
+
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Tag $tag)
+    public function bulkCreateTags(Request $request)
     {
-        //
+
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateTagRequest $request, Tag $tag)
+    public function bulkDeleteTags(Request $request)
     {
-        //
+
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Tag $tag)
+    public function archiveTag($id)
     {
-        //
+
+    }
+
+    public function restoreTag($id)
+    {
+
+    }
+
+    public function searchTags(Request $request)
+    {
+
     }
 }
