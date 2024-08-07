@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -325,110 +326,503 @@ class Tag extends Model
 
 
 
-    public function getTagsByParentId($parentId): Collection
+    public function getTagsByParentId(int $parentId): array
     {
-        return DB::table('tags')->select('id', 'name', 'parent_id')->where('parent_id', $parentId)->get();
+        try {
+            if ($parentId < 0) {
+                throw new InvalidArgumentException('Invalid parent ID provided.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'parent_id')
+                ->where('parent_id', $parentId)
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given parent ID.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given parent ID.');
+        } catch (InvalidArgumentException $e) {
+            throw $e; // Rethrow to preserve the exception message
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
     }
 
-    public function getRecentTags($limit = 10): Collection
+    public function getTagsOrderedByCreatedAt(int $limit = 50): array
     {
-        return DB::table('tags')->select('id', 'name', 'created_at')->orderBy('created_at', 'desc')->limit($limit)->get();
+        try {
+            if ($limit <= 0 || $limit > 50) {
+                throw new InvalidArgumentException('Invalid limit provided. Must be between 1 and 50.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'created_at')
+                ->whereNull('deleted_at')
+                ->orderBy('created_at', 'desc');
+
+            $result = $query->paginate($limit);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found.');
+        } catch (InvalidArgumentException $e) {
+            throw $e; // Rethrow to preserve the exception message
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
     }
 
-    public function getTagsByPopularityAndUsage($popularityThreshold, $usageThreshold): Collection
+    public function getPopularTag(int $popularityThreshold, int $usageThreshold, int $limit = 50): array
     {
-        return DB::table('tags')->select('id', 'name', 'popularity_score', 'usage_count')->where('popularity_score', '>=', $popularityThreshold)->where('usage_count', '>=', $usageThreshold)->get();
-    }
+        try {
+            if ($popularityThreshold < 0 || $usageThreshold < 0 || $limit <= 0 || $limit > 50) {
+                throw new InvalidArgumentException('Invalid arguments provided.');
+            }
 
+            $query = DB::table('tags')
+                ->select('id', 'name', 'popularity_score', 'usage_count')
+                ->where('popularity_score', '>=', $popularityThreshold)
+                ->where('usage_count', '>=', $usageThreshold)
+                ->whereNull('deleted_at')
+                ->orderBy('popularity_score', 'desc')
+                ->orderBy('usage_count', 'desc');
 
-    public function getTagsWithParentAndChild($tagId): \Illuminate\Http\JsonResponse
-    {
-        $tag = DB::table('tags')->select('id', 'name', 'parent_id')->where('id', $tagId)->first();
-        $parent = $tag ? DB::table('tags')->select('id', 'name')->where('id', $tag->parent_id)->first() : null;
-        $children = $tag ? DB::table('tags')->select('id', 'name')->where('parent_id', $tagId)->get() : collect();
+            $result = $query->paginate($limit);
 
-        return response()->json(['tag' => $tag, 'parent' => $parent, 'children' => $children], 200);
-    }
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found matching the criteria.');
+            }
 
-    public function getTagsByDateRange($startDate, $endDate): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'created_at')->whereBetween('created_at', [$startDate, $endDate])->get();
-    }
-
-    public function getTagsByPopularityScoreRange($minScore, $maxScore): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'popularity_score')->whereBetween('popularity_score', [$minScore, $maxScore])->get();
-    }
-
-    public function getTagsByUsageCountRange($minCount, $maxCount): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'usage_count')->whereBetween('usage_count', [$minCount, $maxCount])->get();
-    }
-
-    public function getTagsWithActiveStatus(): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'is_active')->where('is_active', true)->get();
-    }
-
-    public function getTagsByTaskIdAndStatus($taskId, $status): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'task_id', 'is_active')->where('task_id', $taskId)->where('is_active', $status)->get();
-    }
-
-    public function getTagsByColor($color): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'color')->where('color', $color)->get();
-    }
-
-    public function getTagsWithMetaTitle(): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'meta_title')->whereNotNull('meta_title')->get();
-    }
-
-    public function getTagsWithGeolocationData(): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'geolocation_data')->whereNotNull('geolocation_data')->get();
-    }
-
-    public function getTagsByContentType($contentType): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'content_type')->where('content_type', $contentType)->get();
-    }
-
-    public function getTagsWithDescriptionVector(): Collection
-    {
-        return DB::table('tags')->select('id', 'name', 'description_vector', 'created_at')->whereNotNull('description_vector')->get();
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found matching the criteria.');
+        } catch (InvalidArgumentException $e) {
+            throw $e; // Rethrow to preserve the exception message
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching popular tags.');
+        }
     }
 
 
-    public function getTagsByCreatedDateRange($startDate, $endDate): Collection
+    public function getTagsWithParentAndChild(int $tagId): \Illuminate\Http\JsonResponse
     {
-        return DB::table('tags')->select('id', 'name', 'created_at', 'updated_at')->whereBetween('created_at', [$startDate, $endDate])->get();
+        try {
+            $tag = DB::table('tags')
+                ->select('id', 'name', 'parent_id')
+                ->where('id', $tagId)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$tag) {
+                throw new ModelNotFoundException('Tag not found.');
+            }
+
+            $parent = DB::table('tags')
+                ->select('id', 'name')
+                ->where('id', $tag->parent_id)
+                ->whereNull('deleted_at')
+                ->first();
+
+            $children = DB::table('tags')
+                ->select('id', 'name')
+                ->where('parent_id', $tagId)
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->paginate(50);
+
+            return response()->json(['tag' => $tag, 'parent' => $parent, 'children' => $children], 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['error' => $e->getMessage()], 404);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['error' => 'Invalid argument provided.'], 400);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'An error occurred while fetching tags.'], 500);
+        }
     }
 
-    public function getTagsByUpdatedDateRange($startDate, $endDate): Collection
+    public function getTagsByDateRange(string $startDate, string $endDate): array
     {
-        return DB::table('tags')->select('id', 'name', 'created_at', 'updated_at')->whereBetween('updated_at', [$startDate, $endDate])->get();
+        try {
+            if (!Carbon::hasFormat($startDate, 'Y-m-d') || !Carbon::hasFormat($endDate, 'Y-m-d')) {
+                throw new InvalidArgumentException('Invalid date format provided.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'created_at')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->whereNull('deleted_at')
+                ->orderBy('created_at', 'desc');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given date range.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given date range.');
+        } catch (InvalidArgumentException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
     }
 
-    public function getTagsWithMetaData(): Collection
+    public function getTagsByPopularityScore(float $minScore, float $maxScore): array
     {
-        return DB::table('tags')->select('id', 'name', 'meta_data', 'created_at')->whereNotNull('meta_data')->get();
+        try {
+            // Validate input scores
+            if ($minScore > $maxScore) {
+                throw new InvalidArgumentException('Minimum score must be less than or equal to maximum score.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'popularity_score')
+                ->whereBetween('popularity_score', [$minScore, $maxScore])
+                ->whereNull('deleted_at')
+                ->orderBy('popularity_score', 'desc');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given popularity score range.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given popularity score range.');
+        } catch (InvalidArgumentException $e) {
+            throw $e; // Rethrow to preserve the exception message
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
     }
 
-    public function getTagsByVersion($version): Collection
+    public function getTagsByUsageCountRange(int $minCount, int $maxCount): array
     {
-        return DB::table('tags')->select('id', 'name', 'version', 'created_at')->where('version', $version)->get();
+        try {
+            if ($minCount > $maxCount) {
+                throw new InvalidArgumentException('Minimum count must be less than or equal to maximum count.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'usage_count')
+                ->whereBetween('usage_count', [$minCount, $maxCount])
+                ->whereNull('deleted_at')
+                ->orderBy('usage_count', 'desc');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given usage count range.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given usage count range.');
+        } catch (InvalidArgumentException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
     }
 
-    public function getTagsWithVersionGreaterThan($version): Collection
+    public function getActiveTags(): array
     {
-        return DB::table('tags')->select('id', 'name', 'version', 'created_at')->where('version', '>', $version)->get();
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'is_active')
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No active tags found.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No active tags found.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching active tags.');
+        }
     }
 
-    public function getTagsWithVersionLessThan($version): Collection
+
+
+    public function getTagsByTaskIdAndStatus(int $taskId, bool $status): array
     {
-        return DB::table('tags')->select('id', 'name', 'version', 'created_at')->where('version', '<', $version)->get();
+        try {
+            if ($taskId <= 0 || !is_bool($status)) {
+                throw new InvalidArgumentException('Invalid argument provided.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'todo_id', 'is_active')
+                ->where('todo_id', $taskId)
+                ->where('is_active', $status)
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given task ID and status.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
+    }
+
+    public function getTagsByColor(string $color): array
+    {
+        try {
+            if (!is_string($color)) {
+                throw new InvalidArgumentException('Invalid color argument provided.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'color')
+                ->where('color', $color)
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given color.');
+            }
+
+            return $result->items();
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid color argument provided.');
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given color.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags.');
+        }
+    }
+
+    public function getTagsWithMetaTitle(): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'meta_title')
+                ->whereNotNull('meta_title')
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found with a meta title.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found with a meta title.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags with meta titles.');
+        }
+    }
+
+    public function getTagsWithGeolocationData(): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'geolocation_data')
+                ->whereNotNull('geolocation_data')
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found with geolocation data.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found with geolocation data.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags with geolocation data.');
+        }
+    }
+
+
+    public function getTagsByContentType(string $contentType): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'content_type')
+                ->where('content_type', $contentType)
+                ->whereNull('deleted_at')
+                ->orderBy('name');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given content type.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given content type.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags by content type.');
+        }
+    }
+
+
+    public function getTagsWithDescriptionVector(): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'description_vector', 'created_at')
+                ->whereNotNull('description_vector')
+                ->whereNull('deleted_at')
+                ->orderBy('created_at');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found with a description vector.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found with a description vector.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags with a description vector.');
+        }
+    }
+
+    public function getTagsByCreatedDateRange(string $startDate, string $endDate): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'created_at', 'updated_at')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->whereNull('deleted_at')
+                ->orderBy('created_at');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given date range.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given date range.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags by created date range.');
+        }
+    }
+
+
+    public function getTagsByUpdatedDateRange(string $startDate, string $endDate): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'created_at', 'updated_at')
+                ->whereBetween('updated_at', [$startDate, $endDate])
+                ->whereNull('deleted_at')
+                ->orderBy('updated_at');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given updated date range.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given updated date range.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags by updated date range.');
+        }
+    }
+
+
+    public function getTagsWithMetaData(): array
+    {
+        try {
+            $query = DB::table('tags')
+                ->select('id', 'name', 'meta_data', 'created_at')
+                ->whereNotNull('meta_data')
+                ->whereNull('deleted_at')
+                ->orderBy('created_at');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found with meta data.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found with meta data.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags with meta data.');
+        }
+    }
+
+    public function getTagsByVersion(string $version): array
+    {
+        try {
+            if (empty($version)) {
+                throw new InvalidArgumentException('Version must not be empty.');
+            }
+
+            $query = DB::table('tags')
+                ->select('id', 'name', 'version', 'created_at')
+                ->where('version', $version)
+                ->whereNull('deleted_at')
+                ->orderBy('created_at');
+
+            $result = $query->paginate(50);
+
+            if ($result->isEmpty()) {
+                throw new ModelNotFoundException('No tags found for the given version.');
+            }
+
+            return $result->items();
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException('No tags found for the given version.');
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            throw new Exception('An error occurred while fetching tags by version.');
+        }
     }
 
     public function todos()
