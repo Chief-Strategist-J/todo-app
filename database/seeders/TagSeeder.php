@@ -2,17 +2,17 @@
 
 namespace Database\Seeders;
 
-use App\Models\Todo;
+use App\Models\Tag;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
-class TodoSeeder extends Seeder
+class TagSeeder extends Seeder
 {
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        Todo::factory()->count(50)->create();
+        Tag::factory()->count(50)->create();
     }
 }

@@ -107,6 +107,8 @@ class Todo extends Model
             }
         }
     }
+
+
     private function clearTodoListCache(): void
     {
         Cache::forget(Todo::cacheKeyForTodoList);
@@ -142,15 +144,12 @@ class Todo extends Model
         }
 
         return $todo;
-
-        
     }
 
     public function getTodoList(): Collection
     {
         $minutesInWeek = 7 * 24 * 60;
-        $fields = ['id', 'title', 'notes', 'created_by', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
-
+        $fields = ['id', 'title', 'notes', 'created_by', 'firebase_todo_id', 'start_time', 'end_time', 'date', 'priority'];
         return Cache::remember(Todo::cacheKeyForTodoList, $minutesInWeek, function () use ($fields) {
             return Todo::select($fields)->get();
         });
@@ -159,7 +158,7 @@ class Todo extends Model
     public function getPerPageTodoList(): array
     {
         $minutesInWeek = 7 * 24 * 60;
-        $fields = ['id', 'title', 'description', 'notes', 'firebase_todo_id', 'start_time', 'end_time', 'date'];
+        $fields = ['id', 'title', 'description', 'notes', 'firebase_todo_id', 'start_time', 'end_time', 'date', 'priority'];
 
         $page = request('page', 1);
         $perPage = 15;
@@ -184,5 +183,10 @@ class Todo extends Model
             'todos' => $paginator->items(),
 
         ];
+    }
+
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'tag_todo', 'todo_id', 'tag_id');
     }
 }
