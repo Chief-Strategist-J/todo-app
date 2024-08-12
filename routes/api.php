@@ -27,11 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('updateUserDetails', [UserController::class, 'updateUserDetails'])->name('updateUserDetails');
     Route::post('getUserDetail', [UserController::class, 'getUserDetail'])->name('getUserDetail');
     Route::post('updatePassword', [UserController::class, 'updatePassword'])->name('updatePassword');
-});
 
-
-Route::middleware(['auth'])->group(function () {
-    Route::prefix('api/v1/tags')->name('tags.')->group(function () {
+    Route::prefix('v1/tags')->name('tags.')->group(function () {
         Route::get('/', [TagController::class, 'getAllTags'])->name('getAll');
         Route::post('/', [TagController::class, 'createTag'])->name('create');
         Route::put('/', [TagController::class, 'updateTag'])->name('update');
@@ -45,5 +42,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/search', [TagController::class, 'searchTags'])->name('search');
     });
 });
+
 
 Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');

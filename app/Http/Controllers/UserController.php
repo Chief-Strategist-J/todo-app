@@ -6,6 +6,7 @@ use App\Http\Requests\UpdateUserDetailRequest;
 use App\Http\Requests\UserLoginRequest;
 use App\Models\User;
 use App\Models\UserDetail;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -27,24 +28,28 @@ class UserController extends Controller
             $credentials = $request->only('email', 'password');
             $isSignUp = $request->input('is_sign_up');
 
-            if ($request->filled('is_sign_up') && $request->input('is_sign_up')) {
-                Cache::forget($request->input('email'));
+            if ($isSignUp) {
+                Cache::forget($credentials['email']);
             }
 
             $user = Cache::remember($credentials['email'], now()->addWeek(), function () use ($credentials) {
                 return User::where('email', $credentials['email'])->first();
             });
 
-            if (!is_null($user)) {
-                $authenticated = Auth::attempt($credentials);
-                if ($authenticated) {
-
-                    $this->sendWelcomeNotification(title: "Welcome", message: 'Welcome back to Todo!', emails: $credentials['email']);
+            if ($user) {
+                if (Auth::attempt($credentials)) {
+                    $this->sendWelcomeNotification(
+                        title: "Welcome",
+                        message: 'Welcome back to Todo!',
+                        emails: $credentials['email']
+                    );
 
                     return $this->generateLoginResponse($user, true, isSignUp: $isSignUp);
+                } else {
+                    return response()->json([
+                        'message' => 'User exists but the password is incorrect. Please check again'
+                    ], 401);
                 }
-
-                errorMsg(message: 'User exists but the password is incorrect. Please check again');
             }
 
             $registerUser = [
@@ -55,20 +60,30 @@ class UserController extends Controller
 
             $user = User::create($registerUser);
 
-            $this->sendWelcomeNotification(title: "Welcome", message: 'Welcome to Todo for the first time!', emails: $credentials['email']);
+            $this->sendWelcomeNotification(
+                title: "Welcome",
+                message: 'Welcome to Todo for the first time!',
+                emails: $credentials['email']
+            );
 
-            $userDetail = UserDetail::updateOrCreate(
+            UserDetail::updateOrCreate(
                 ['user_id' => $user->id],
                 ['email' => $credentials['email']]
             );
 
+            Auth::login($user);
             return $this->generateLoginResponse($user, isSignUp: $isSignUp);
-        } catch (Throwable $e) {
+        }catch (QueryException $e) { // Catch specific DB exception
             report($e);
-            Log::info("Error While login");
-            throw $e;
+            Log::error("Database error while login: " . $e->getMessage());
+            return response()->json(['message' => 'Internal Server Error. Please try again later.'], 500);
+        }  catch (Throwable $e) {
+            report($e);
+            Log::error("Error While login");
+            return response()->json(['message' => 'Internal Server Error. Please try again later.'], 500);
         }
     }
+
 
     public function sendWelcomeNotification($title, $message, $emails)
     {
@@ -173,8 +188,19 @@ class UserController extends Controller
             }
 
             $fields = [
-                'first_name', 'last_name', 'phone', 'birthdate', 'address', 'city',
-                'state', 'country', 'zipcode', 'avatar', 'bio', 'is_active', 'user_id',
+                'first_name',
+                'last_name',
+                'phone',
+                'birthdate',
+                'address',
+                'city',
+                'state',
+                'country',
+                'zipcode',
+                'avatar',
+                'bio',
+                'is_active',
+                'user_id',
                 'firebase_user_details_id '
             ];
 
@@ -232,7 +258,8 @@ class UserController extends Controller
 
             $user = User::where('email', $email)->first();
 
-            if (is_null($user)) return $this->userNotFound();
+            if (is_null($user))
+                return $this->userNotFound();
 
             $user->password = Hash::make($password);
             $user->save();
@@ -257,12 +284,14 @@ class UserController extends Controller
             $email = $request->input('email');
             $user = UserDetail::where('email', $email)->first();
 
-            if (is_null($user)) return $this->userNotFound();
+            if (is_null($user))
+                return $this->userNotFound();
 
             $cachedOtpId = '_otp_for_forgetPassword_' . $email;
             $cachedOtp = Cache::get($cachedOtpId);
 
-            if ($cachedOtp) return $this->otpIsSended($cachedOtp);
+            if ($cachedOtp)
+                return $this->otpIsSended($cachedOtp);
 
             $otp = str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
             Cache::put($cachedOtpId, $otp, now()->addMinutes(2));

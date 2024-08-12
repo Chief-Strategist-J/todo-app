@@ -1074,4 +1074,22 @@ class TagTest extends TestCase
         (new Tag)->getTagsByVersion('1.0');
     }
 
+    public function testGetSeededTags(): void
+    {
+        // Seed tags
+
+
+        // Test valid page request
+        $tags = (new Tag())->getSeededTags(1);
+        $this->assertNotEmpty($tags);
+
+        // Test invalid page request
+        $this->expectException(ModelNotFoundException::class);
+        (new Tag())->getSeededTags(9999);
+
+        // Test invalid argument exception
+        $this->expectException(InvalidArgumentException::class);
+        (new Tag())->getSeededTags(0);
+    }
+
 }

@@ -45,6 +45,7 @@ class Tag extends Model
         'meta_data',
         'created_by',
         'parent_id',
+        'todo_id',
         'last_trend_update',
         'last_used_at'
     ];
@@ -73,19 +74,22 @@ class Tag extends Model
         static::created(function ($tag) {
             Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
             Cache::forget('popular_tags_' . $tag->id);
-            Cache::tags(['user_tags'])->flush();
+            Cache::forget('user_tags');
+            Tag::cacheTags();
         });
 
         static::updated(function ($tag) {
             Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
             Cache::forget('popular_tags_' . $tag->id);
-            Cache::tags(['user_tags'])->flush();
+            Cache::forget('user_tags');
+            Tag::cacheTags();
         });
 
         static::deleted(function ($tag) {
             Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
             Cache::forget('popular_tags_' . $tag->id);
-            Cache::tags(['user_tags'])->flush();
+            Cache::forget('user_tags');
+            Tag::cacheTags();
 
         });
     }
@@ -94,37 +98,11 @@ class Tag extends Model
 
     public function createTag(Request $request, $taskId): bool|int
     {
-        $fillable = [
-            'uuid',
-            'is_active',
-            'order',
-            'version',
-            'follower_count',
-            'usage_count',
-            'related_posts_count',
-            'user_interaction_count',
-            'popularity_score',
-            'name',
-            'slug',
-            'meta_title',
-            'color',
-            'image_url',
-            'tag_type',
-            'content_type',
-            'description_vector',
-            'meta_description',
-            'description',
-            'geolocation_data',
-            'meta_data',
-            'created_by',
-            'parent_id',
-            'last_trend_update',
-            'last_used_at'
-        ];
+
 
         $tag = new Tag();
 
-        foreach ($fillable as $field) {
+        foreach ($this->fillable as $field) {
             if ($request->has($field)) {
                 $tag->$field = $request->input($field);
             }
@@ -133,47 +111,24 @@ class Tag extends Model
         return $tag->save();
     }
 
-    private function updateTag(Request $request, $taskId): int
+    public function updateTag(Request $request): int
     {
-        $fillable = [
-            'uuid',
-            'is_active',
-            'order',
-            'version',
-            'follower_count',
-            'usage_count',
-            'related_posts_count',
-            'user_interaction_count',
-            'popularity_score',
-            'name',
-            'slug',
-            'meta_title',
-            'color',
-            'image_url',
-            'tag_type',
-            'content_type',
-            'description_vector',
-            'meta_description',
-            'description',
-            'geolocation_data',
-            'meta_data',
-            'created_by',
-            'parent_id',
-            'last_trend_update',
-            'last_used_at'
-        ];
-
         $tagId = $request->input('id');
-        $tag = DB::table('tags')->where('id', $tagId)->first();
+        $tag = Tag::where('id', $tagId)->first();
 
-        foreach ($fillable as $field) {
+        if (!$tag) {
+            return 0; // Return 0 if the tag is not found
+        }
+
+        foreach ($this->fillable as $field) {
             if ($request->has($field)) {
                 $tag->$field = $request->input($field);
             }
         }
 
-        return DB::table('tags')->where('id', $tagId)->update((array) $tag);
+        return $tag->save();
     }
+
 
     public function deleteTag($id): int
     {
@@ -823,6 +778,55 @@ class Tag extends Model
         } catch (Exception $e) {
             throw new Exception('An error occurred while fetching tags by version.');
         }
+    }
+
+    public function getSeededTags(int $page = 1): LengthAwarePaginator
+    {
+        if ($page < 1) {
+            throw new InvalidArgumentException('Page number must be greater than 0.');
+        }
+
+        try {
+            $key = Tag::generateCacheKey($page);
+
+            return Cache::remember($key, now()->addWeek(), function () use ($page) {
+                return DB::table('tags AS t')
+                    ->select('t.id', 't.name', 't.slug', 't.created_by')
+                    ->whereIn('t.name', [
+                        'Urgent',
+                        'Personal',
+                        'Work',
+                        'Home',
+                        'Important',
+                        'Design',
+                        'Research', 
+                        'Productive'
+                    ])
+                    ->whereNull('t.deleted_at')
+                    ->orderBy('t.name')
+                    ->paginate(50, ['*'], 'page', $page);
+            });
+
+        } catch (ModelNotFoundException $e) {
+            Log::error('Tag model not found: ' . $e->getMessage());
+            throw new ModelNotFoundException('The requested tag does not exist.');
+        } catch (InvalidArgumentException $e) {
+            Log::error('Invalid argument: ' . $e->getMessage());
+            throw new InvalidArgumentException('Invalid argument provided.');
+        } catch (Exception $e) {
+            Log::error('General error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public static function cacheTags(): void
+    {
+        Cache::forget(Tag::generateCacheKey());
+    }
+
+    public static function generateCacheKey(int $page = 1): string
+    {
+        return 'seeded_tags_page_' . $page;
     }
 
     public function todos()

@@ -2,33 +2,115 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CreateTagRequest;
 use App\Http\Requests\StoreTagRequest;
 use App\Http\Requests\UpdateTagRequest;
 use App\Models\Tag;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
+use function App\Helper\errorMsg;
+use function App\Helper\successMessage;
 
 class TagController extends Controller
 {
-    public function getAllTags(Request $request)
+    public function getAllTags(Request $request): JsonResponse
     {
+        // Type cast the task ID and page number
+        $taskId = (int) $request->input("todo_id");
+        $page = (int) $request->input('page', 1); // Default to 1 if not provided
 
+        // Validate inputs
+        if ($taskId <= 0) {
+            return errorMsg("Invalid Task ID", 400);
+        }
+
+        if ($page < 1) {
+            return errorMsg("Invalid pagination page number", 400);
+        }
+
+        // Fetch tags by task ID
+        try {
+            $tags = resolve(Tag::class)->getTagsByTaskId($taskId, $page);
+            return successMessage(data: $tags);
+        } catch (ModelNotFoundException $e) {
+            return errorMsg($e->getMessage(), 404);
+        } catch (InvalidArgumentException $e) {
+            return errorMsg($e->getMessage(), 400);
+        } catch (\Exception $e) {
+            return errorMsg("An unexpected error occurred. Please try again later.", 500);
+        }
     }
 
-    public function createTag(Request $request)
-    {
 
+
+    public function createTag(CreateTagRequest $request): JsonResponse
+    {
+        $taskId = (int) $request->input('todo_id');
+        if ($taskId <= 0) {
+            return errorMsg("Invalid Task ID", 400);
+        }
+
+        $tagModel = new Tag();
+        $result = $tagModel->createTag($request, $taskId);
+
+        if (!$result) {
+            return errorMsg("Failed to create tag", 500);
+        }
+
+        return successMessage("Tag created successfully", true);
     }
 
-    public function updateTag(Request $request, $id)
-    {
 
+
+    public function updateTag(Request $request): JsonResponse
+    {
+        try {
+            
+
+            // Call the model's updateTag method
+            $result = resolve(Tag::class)->updateTag($request);
+
+            if ($result) {
+                return successMessage('Tag updated successfully');
+            } else {
+                return errorMsg('Failed to update tag', 500);
+            }
+        } catch (ValidationException $e) {
+            return errorMsg($e->getMessage(), 422, $e->errors());
+        } catch (Exception $e) {
+            return errorMsg('An unexpected error occurred: ' . $e->getMessage(), 500);
+        }
     }
 
-    public function deleteTag(Request $request, $id)
-    {
 
+    public function deleteTag(Request $request, int $id): JsonResponse
+    {
+        try {
+            // Validate the ID
+            $validatedData = $request->validate([
+                'id' => 'required|integer|exists:tags,id',
+            ]);
+
+            // Call the model's deleteTag method
+            $result = resolve(Tag::class)->deleteTag($id);
+
+            if ($result) {
+                return successMessage('Tag deleted successfully');
+            } else {
+                return errorMsg('Failed to delete tag', 500);
+            }
+        } catch (ValidationException $e) {
+            return errorMsg($e->getMessage(), 422, $e->errors());
+        } catch (Exception $e) {
+            return errorMsg('An unexpected error occurred: ' . $e->getMessage(), 500);
+        }
     }
+
 
     public function bulkCreateTags(Request $request)
     {

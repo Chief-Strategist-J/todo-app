@@ -15,8 +15,18 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
+        $user = User::updateOrCreate(
+            ['id' => 1], // Condition to check if the user with ID 1 exists
+            [
+                'name' => 'admin',
+                'email' => 'admin@example.com',
+                'password' => bcrypt('password'), // Use a hashed password
+            ]
+        );
+
         $this->call([
             TodoSeeder::class,
+            TagSeeder::class
         ]);
     }
 }
