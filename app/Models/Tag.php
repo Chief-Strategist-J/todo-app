@@ -780,7 +780,7 @@ class Tag extends Model
         }
     }
 
-    public function getSeededTags(int $page = 1): LengthAwarePaginator
+    public function getSeededTags(int $page = 1): array
     {
         if ($page < 1) {
             throw new InvalidArgumentException('Page number must be greater than 0.');
@@ -791,7 +791,7 @@ class Tag extends Model
 
             return Cache::remember($key, now()->addWeek(), function () use ($page) {
                 return DB::table('tags AS t')
-                    ->select('t.id', 't.name', 't.slug', 't.created_by')
+                    ->select('t.id', 't.name', 't.slug', 't.created_by','t.color')
                     ->whereIn('t.name', [
                         'Urgent',
                         'Personal',
@@ -804,7 +804,8 @@ class Tag extends Model
                     ])
                     ->whereNull('t.deleted_at')
                     ->orderBy('t.name')
-                    ->paginate(50, ['*'], 'page', $page);
+                    ->paginate(50, ['*'], 'page', $page)
+                    ->items();
             });
 
         } catch (ModelNotFoundException $e) {

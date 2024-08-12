@@ -27,14 +27,14 @@ class TagSeeder extends Seeder
         );
         
         $tags = [
-            ['name' => 'Urgent', 'slug' => Str::slug('Urgent')],
-            ['name' => 'Personal', 'slug' => Str::slug('Personal')],
-            ['name' => 'Work', 'slug' => Str::slug('Work')],
-            ['name' => 'Home', 'slug' => Str::slug('Home')],
-            ['name' => 'Important', 'slug' => Str::slug('Important')],
-            ['name' => 'Design', 'slug' => Str::slug('Design')],
-            ['name' => 'Research', 'slug' => Str::slug('Research')],
-            ['name' => 'Productive', 'slug' => Str::slug('Productive')],
+            ['name' => 'Urgent', 'slug' => Str::slug('Urgent'),'color'=>'0xFFFF0000'],
+            ['name' => 'Personal', 'slug' => Str::slug('Personal'),'color'=>'0xFF98FB98'],
+            ['name' => 'Work', 'slug' => Str::slug('Work'),'color'=>'0xFF40E0D0'],
+            ['name' => 'Home', 'slug' => Str::slug('Home'),'color'=>'0xFF87CEFA'],
+            ['name' => 'Important', 'slug' => Str::slug('Important'),'color'=>'0xFFFF7F50'],
+            ['name' => 'Design', 'slug' => Str::slug('Design'),'color'=>'0xFF00FA9A'],
+            ['name' => 'Research', 'slug' => Str::slug('Research'),'color'=>'0xFF800000'],
+            ['name' => 'Productive', 'slug' => Str::slug('Productive'),'color'=>'0xFF9400D3'],
         ];
 
         foreach ($tags as $tag) {
@@ -44,6 +44,7 @@ class TagSeeder extends Seeder
                     'uuid' => Str::uuid(),
                     'slug' => $tag['slug'],
                     'created_by' => 1, // Assuming admin user with ID 1 is creating these tags
+                    'color' => $tag['color'], // Assuming admin user with ID 1 is creating these tags
                     'is_active' => true,
                     'order' => 0,
                     'version' => 1,

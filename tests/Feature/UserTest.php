@@ -107,6 +107,7 @@ class UserTest extends TestCase
 
         $this->assertNull(Cache::get($email));
     }
+    
     public function testErrorIsLoggedOnException()
     {
         // Create a mock for the User model

@@ -29,6 +29,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('updatePassword', [UserController::class, 'updatePassword'])->name('updatePassword');
 
     Route::prefix('v1/tags')->name('tags.')->group(function () {
+        
+        Route::get('/getAllSeeded', [TagController::class, 'getAllSeededTags'])->name('getAllSeeded');
         Route::get('/', [TagController::class, 'getAllTags'])->name('getAll');
         Route::post('/', [TagController::class, 'createTag'])->name('create');
         Route::put('/', [TagController::class, 'updateTag'])->name('update');

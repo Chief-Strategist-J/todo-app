@@ -41,7 +41,29 @@ class TagController extends Controller
             return errorMsg($e->getMessage(), 404);
         } catch (InvalidArgumentException $e) {
             return errorMsg($e->getMessage(), 400);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
+            return errorMsg("An unexpected error occurred. Please try again later.", 500);
+        }
+    }
+
+    public function getAllSeededTags(Request $request): JsonResponse
+    {
+        // Type cast the task ID and page number
+        $page = (int) $request->input('page', 1); // Default to 1 if not provided
+
+        if ($page < 1) {
+            return errorMsg("Invalid pagination page number", 400);
+        }
+
+        // Fetch tags by task ID
+        try {
+            $tags = resolve(Tag::class)->getSeededTags($page);
+            return successMessage(data: $tags);
+        } catch (ModelNotFoundException $e) {
+            return errorMsg($e->getMessage(), 404);
+        } catch (InvalidArgumentException $e) {
+            return errorMsg($e->getMessage(), 400);
+        } catch (Exception $e) {
             return errorMsg("An unexpected error occurred. Please try again later.", 500);
         }
     }
