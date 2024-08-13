@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class Tag extends Model
@@ -98,18 +99,39 @@ class Tag extends Model
 
     public function createTag(Request $request, $taskId): bool|int
     {
-
-
         $tag = new Tag();
-
         foreach ($this->fillable as $field) {
             if ($request->has($field)) {
                 $tag->$field = $request->input($field);
             }
         }
-
         return $tag->save();
     }
+
+    public function createBulkTags(Request $request, $taskId): bool
+    {
+        $tagsData = $request->input('tags'); // Retrieve the array of tags from the request body
+        $tags = [];
+
+        foreach ($tagsData as $tagData) {
+            $tagData['uuid'] = Str::uuid(); // Generate a UUID for each tag
+            $tagData['slug'] = Str::slug($tagData['name']); // Generate a slug based on the name
+
+            $tag = new Tag();
+
+            foreach ($this->fillable as $field) {
+                if (isset($tagData[$field])) {
+                    $tag->$field = $tagData[$field];
+                }
+            }
+
+            $tag->todo_id = $taskId; // Assuming you want to associate tags with a specific task
+            $tags[] = $tag->toArray();
+        }
+
+        return Tag::insert($tags); // Bulk insert all tags
+    }
+
 
     public function updateTag(Request $request): int
     {
@@ -791,7 +813,7 @@ class Tag extends Model
 
             return Cache::remember($key, now()->addWeek(), function () use ($page) {
                 return DB::table('tags AS t')
-                    ->select('t.id', 't.name', 't.slug', 't.created_by','t.color')
+                    ->select('t.id', 't.name', 't.slug', 't.created_by', 't.color')
                     ->whereIn('t.name', [
                         'Urgent',
                         'Personal',
@@ -799,7 +821,7 @@ class Tag extends Model
                         'Home',
                         'Important',
                         'Design',
-                        'Research', 
+                        'Research',
                         'Productive'
                     ])
                     ->whereNull('t.deleted_at')

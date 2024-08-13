@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
+// php artisan test --filter UserTest
 class TagTest extends TestCase
 {
     use RefreshDatabase;
@@ -1077,7 +1078,14 @@ class TagTest extends TestCase
     public function testGetSeededTags(): void
     {
         // Seed tags
-
+        Tag::factory()->create(['name' => 'Urgent']);
+        Tag::factory()->create(['name' => 'Personal']);
+        Tag::factory()->create(['name' => 'Work']);
+        Tag::factory()->create(['name' => 'Home']);
+        Tag::factory()->create(['name' => 'Important']);
+        Tag::factory()->create(['name' => 'Design']);
+        Tag::factory()->create(['name' => 'Research']);
+        Tag::factory()->create(['name' => 'Productive']);
 
         // Test valid page request
         $tags = (new Tag())->getSeededTags(1);
@@ -1092,4 +1100,24 @@ class TagTest extends TestCase
         (new Tag())->getSeededTags(0);
     }
 
+    public function testCreateBulkTags()
+    {
+        $tagsData = [
+            ['name' => 'Tag 1', 'color' => 'red', 'created_by' => $this->user->id],
+            ['name' => 'Tag 2', 'color' => 'blue', 'created_by' => $this->user->id],
+            ['name' => 'Tag 3', 'color' => 'green', 'created_by' => $this->user->id],
+        ];
+
+        $request = new Request(['tags' => $tagsData]);
+        $taskId = 1; // Example task ID
+
+        $tag = new Tag();
+        $result = $tag->createBulkTags($request, $taskId);
+
+        $this->assertTrue($result);
+        $this->assertDatabaseCount('tags', 3);
+        $this->assertDatabaseHas('tags', ['name' => 'Tag 1', 'color' => 'red', 'todo_id' => $taskId]);
+        $this->assertDatabaseHas('tags', ['name' => 'Tag 2', 'color' => 'blue', 'todo_id' => $taskId]);
+        $this->assertDatabaseHas('tags', ['name' => 'Tag 3', 'color' => 'green', 'todo_id' => $taskId]);
+    }
 }
