@@ -31,8 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('v1/tags')->name('tags.')->group(function () {
         
         Route::get('/getAllSeeded', [TagController::class, 'getAllSeededTags'])->name('getAllSeeded');
-        Route::get('/', [TagController::class, 'getAllTags'])->name('getAll');
-        Route::post('/', [TagController::class, 'createTag'])->name('create');
+        Route::post('/', [TagController::class, 'getAllTags'])->name('getAll');
+        Route::post('/createTag', [TagController::class, 'createTag'])->name('create');
         Route::put('/', [TagController::class, 'updateTag'])->name('update');
         Route::delete('/', [TagController::class, 'deleteTag'])->name('delete');
         

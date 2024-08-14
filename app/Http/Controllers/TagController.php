@@ -22,11 +22,10 @@ class TagController extends Controller
 {
     public function getAllTags(Request $request): JsonResponse
     {
-        // Type cast the task ID and page number
+        
         $taskId = (int) $request->input("todo_id");
-        $page = (int) $request->input('page', 1); // Default to 1 if not provided
+        $page = (int) $request->input('page', 1); 
 
-        // Validate inputs
         if ($taskId <= 0) {
             return errorMsg("Invalid Task ID", 400);
         }
@@ -35,7 +34,6 @@ class TagController extends Controller
             return errorMsg("Invalid pagination page number", 400);
         }
 
-        // Fetch tags by task ID
         try {
             $tags = resolve(Tag::class)->getTagsByTaskId($taskId, $page);
             return successMessage(data: $tags);
@@ -50,14 +48,12 @@ class TagController extends Controller
 
     public function getAllSeededTags(Request $request): JsonResponse
     {
-        // Type cast the task ID and page number
-        $page = (int) $request->input('page', 1); // Default to 1 if not provided
+        $page = (int) $request->input('page', 1);
 
         if ($page < 1) {
             return errorMsg("Invalid pagination page number", 400);
         }
 
-        // Fetch tags by task ID
         try {
             $tags = resolve(Tag::class)->getSeededTags($page);
             return successMessage(data: $tags);
@@ -94,9 +90,6 @@ class TagController extends Controller
     public function updateTag(Request $request): JsonResponse
     {
         try {
-
-
-            // Call the model's updateTag method
             $result = resolve(Tag::class)->updateTag($request);
 
             if ($result) {
@@ -115,12 +108,10 @@ class TagController extends Controller
     public function deleteTag(Request $request, int $id): JsonResponse
     {
         try {
-            // Validate the ID
             $validatedData = $request->validate([
                 'id' => 'required|integer|exists:tags,id',
             ]);
 
-            // Call the model's deleteTag method
             $result = resolve(Tag::class)->deleteTag($id);
 
             if ($result) {
@@ -138,9 +129,6 @@ class TagController extends Controller
 
     public function bulkCreateTags(BulkCreateTagsRequest $request): JsonResponse
     {
-
-        
-
         try {
             $result = (new Tag())->createBulkTags($request);
             return successMessage("Tags created successfully.", true, $result);
