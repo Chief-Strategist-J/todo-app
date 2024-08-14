@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Requests\BulkCreateTagsRequest;
 use App\Models\Tag;
 use App\Models\Todo;
 use App\Models\User;
@@ -8,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 // php artisan test --filter UserTest
@@ -1102,22 +1104,34 @@ class TagTest extends TestCase
 
     public function testCreateBulkTags()
     {
+        // Create a todo entry to associate with tags
+        $todoId = DB::table('todos')->insertGetId([
+            'title' => 'Sample Todo',
+            'description' => 'This is a sample todo for testing.',
+            'is_completed' => false,
+            'created_by' => $this->user->id, // Assuming you have a user set up in your tests
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $tagsData = [
             ['name' => 'Tag 1', 'color' => 'red', 'created_by' => $this->user->id],
             ['name' => 'Tag 2', 'color' => 'blue', 'created_by' => $this->user->id],
             ['name' => 'Tag 3', 'color' => 'green', 'created_by' => $this->user->id],
         ];
 
-        $request = new Request(['tags' => $tagsData]);
-        $taskId = 1; // Example task ID
-
-        $tag = new Tag();
-        $result = $tag->createBulkTags($request, $taskId);
+        $request = new BulkCreateTagsRequest(['tags' => $tagsData]);
+        $result = (new Tag())->createBulkTags($request, $todoId);
 
         $this->assertTrue($result);
         $this->assertDatabaseCount('tags', 3);
-        $this->assertDatabaseHas('tags', ['name' => 'Tag 1', 'color' => 'red', 'todo_id' => $taskId]);
-        $this->assertDatabaseHas('tags', ['name' => 'Tag 2', 'color' => 'blue', 'todo_id' => $taskId]);
-        $this->assertDatabaseHas('tags', ['name' => 'Tag 3', 'color' => 'green', 'todo_id' => $taskId]);
+
+        // Verify that the tags are created and associated with the todo
+        foreach ($tagsData as $tag) {
+            $this->assertDatabaseHas('tags', ['name' => $tag['name'], 'color' => $tag['color']]);
+            $this->assertDatabaseHas('tag_todo', ['tag_id' => DB::table('tags')->where('name', $tag['name'])->value('id'), 'todo_id' => $todoId]);
+        }
     }
+
+
 }

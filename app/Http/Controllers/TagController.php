@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\BulkCreateTagsRequest;
 use App\Http\Requests\CreateTagRequest;
 use App\Http\Requests\StoreTagRequest;
 use App\Http\Requests\UpdateTagRequest;
 use App\Models\Tag;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -92,7 +94,7 @@ class TagController extends Controller
     public function updateTag(Request $request): JsonResponse
     {
         try {
-            
+
 
             // Call the model's updateTag method
             $result = resolve(Tag::class)->updateTag($request);
@@ -134,9 +136,19 @@ class TagController extends Controller
     }
 
 
-    public function bulkCreateTags(Request $request)
+    public function bulkCreateTags(BulkCreateTagsRequest $request): JsonResponse
     {
 
+        
+
+        try {
+            $result = (new Tag())->createBulkTags($request);
+            return successMessage("Tags created successfully.", true, $result);
+        } catch (QueryException $e) {
+            return errorMsg('Database error occurred.', 500, ['error' => $e->getMessage()]);
+        } catch (Exception $e) {
+            return errorMsg('An error occurred during tag creation.', 500, ['error' => $e->getMessage()]);
+        }
     }
 
     public function bulkDeleteTags(Request $request)

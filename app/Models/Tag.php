@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Requests\BulkCreateTagsRequest;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class Tag extends Model
@@ -108,29 +110,108 @@ class Tag extends Model
         return $tag->save();
     }
 
-    public function createBulkTags(Request $request, $taskId): bool
+    function getOrCreateTag($name, $data = [])
     {
-        $tagsData = $request->input('tags'); // Retrieve the array of tags from the request body
-        $tags = [];
+        $tag = DB::table('tags')->where('name', $name)->first();
 
-        foreach ($tagsData as $tagData) {
-            $tagData['uuid'] = Str::uuid(); // Generate a UUID for each tag
-            $tagData['slug'] = Str::slug($tagData['name']); // Generate a slug based on the name
+        if (!$tag) {
+            $tagId = DB::table('tags')->insertGetId(array_merge([
+                'uuid' => (string) Str::uuid(),
+                'name' => $name,
+                'slug' => Str::slug($name),
+                'created_by' => $data['created_by'],
+                'todo_id' => $data['todo_id'] ?? null,
+            ], $data));
 
-            $tag = new Tag();
-
-            foreach ($this->fillable as $field) {
-                if (isset($tagData[$field])) {
-                    $tag->$field = $tagData[$field];
-                }
-            }
-
-            $tag->todo_id = $taskId; // Assuming you want to associate tags with a specific task
-            $tags[] = $tag->toArray();
+            $tag = DB::table('tags')->find($tagId);
         }
 
-        return Tag::insert($tags); // Bulk insert all tags
+        return $tag;
     }
+
+    function assignTagToTask($taskId, $tagName, $data = [])
+    {
+        $tag = $this->getOrCreateTag($tagName, $data);
+
+        // Check if the tag is already assigned to the task
+        $exists = DB::table('tag_todo')
+            ->where('tag_id', $tag->id)
+            ->where('todo_id', $taskId)
+            ->exists();
+
+        if (!$exists) {
+            // If not, assign the tag to the task
+            DB::table('tag_todo')->insert([
+                'tag_id' => $tag->id,
+                'todo_id' => $taskId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    public function createBulkTags(BulkCreateTagsRequest $request): bool
+    {
+        $tagsData = $request->input('tags');
+        DB::beginTransaction();
+
+        try {
+            $todoIds = [];
+            foreach ($tagsData as $tagData) {
+                $todoIds[] = $tagData['todo_id'];
+            }
+
+            $existingTodos = DB::table('todos')->whereIn('id', array_unique($todoIds))->pluck('id')->toArray();
+
+            foreach ($tagsData as $tagData) {
+                if (!in_array($tagData['todo_id'], $existingTodos)) {
+                    throw new Exception('The specified todo ID ' . $tagData['todo_id'] . ' does not exist.');
+                }
+
+                $existingTag = DB::table('tags')->where('name', $tagData['name'])->where('created_by', $tagData['created_by'])->first();
+
+                if (!$existingTag) {
+                    $tagId = DB::table('tags')->insertGetId([
+                        'uuid' => Str::uuid(),
+                        'slug' => Str::slug($tagData['name']),
+                        'created_by' => $tagData['created_by'],
+                        'name' => $tagData['name'],
+                        'color' => $tagData['color'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    $tagId = $existingTag->id;
+                }
+
+                DB::table('tag_todo')->updateOrInsert(
+                    ['tag_id' => $tagId, 'todo_id' => $tagData['todo_id']],
+                    ['created_at' => now(), 'updated_at' => now()]
+                );
+            }
+
+            DB::commit();
+
+            return true;
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Query error during tag creation: ' . $e->getMessage(), [
+                'tagsData' => $tagsData,
+            ]);
+
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error during tag creation: ' . $e->getMessage(), [
+                'tagsData' => $tagsData,
+            ]);
+
+            throw $e;
+        }
+    }
+
+
+
 
 
     public function updateTag(Request $request): int
@@ -139,7 +220,7 @@ class Tag extends Model
         $tag = Tag::where('id', $tagId)->first();
 
         if (!$tag) {
-            return 0; // Return 0 if the tag is not found
+            return 0;
         }
 
         foreach ($this->fillable as $field) {
@@ -174,16 +255,14 @@ class Tag extends Model
             throw new ModelNotFoundException("Task not found");
         }
 
-        // Attempt to get cached tags
-        $cacheKey = "tags_for_task_{$taskId}_page_{$page}";
-        $results = Cache::remember($cacheKey, 10080, function () use ($taskId) {
-            return DB::table('tags')
-                ->select('id', 'name', 'slug', 'todo_id')
-                ->where('todo_id', $taskId)
-                ->whereNull('deleted_at')
-                ->orderBy('id')
-                ->paginate(50)->items();
-        });
+
+        $results = DB::table('tags')
+            ->join('tag_todo', 'tags.id', '=', 'tag_todo.tag_id')
+            ->where('tag_todo.todo_id', $taskId)
+            ->whereNull('tags.deleted_at') 
+            ->orderBy('tags.id')
+            ->select('tags.id', 'tags.name', 'tags.color', 'tags.slug', 'tags.created_at') 
+            ->paginate(50)->items();
 
         return $results;
     }
