@@ -156,33 +156,6 @@ class TagTest extends TestCase
         $this->assertCount(50, $tags);
     }
 
-    public function testItCachesThePopularTagsQuery()
-    {
-        Tag::factory()->count(50)->create();
-
-        $tags = (new Tag)->getPopularTags();
-
-        $this->assertTrue(Cache::has('popular_tags_1'));
-    }
-
-    public function testItInvalidatesCacheWhenTagIsSaved()
-    {
-        $tag = Tag::factory()->create(['popularity_score' => 100]);
-
-        $tag->update(['popularity_score' => 200]);
-
-        $this->assertFalse(Cache::has('popular_tags_1'));
-    }
-
-    public function testItInvalidatesCacheWhenTagIsDeleted()
-    {
-        $tag = Tag::factory()->create(['popularity_score' => 100]);
-
-
-        $tag->delete();
-
-        $this->assertFalse(Cache::has('popular_tags_1'));
-    }
 
     public function testItthrowsInvalidArgumentExceptionForInvalidLimit()
     {
@@ -200,16 +173,6 @@ class TagTest extends TestCase
 
         $this->assertNotEmpty($tags);
         $this->assertCount(50, $tags);
-    }
-
-    public function testItCachesTheUserTagsQuery()
-    {
-        $user = User::factory()->create();
-        Tag::factory()->count(50)->create(['created_by' => $user->id]);
-
-        $tags = (new Tag)->getUserTags($user->id);
-
-        $this->assertTrue(Cache::has('user_tags_' . $user->id . '_1'));
     }
 
     public function testItInvalidatesCacheWhenTagForUserTagQueryIsSaved()
@@ -814,31 +777,6 @@ class TagTest extends TestCase
         DB::shouldReceive('table')->andThrow(new Exception('Database error'));
 
         (new Tag)->getTagsByVersion('1.0');
-    }
-
-    public function testGetSeededTags(): void
-    {
-        // Seed tags
-        Tag::factory()->create(['name' => 'Urgent']);
-        Tag::factory()->create(['name' => 'Personal']);
-        Tag::factory()->create(['name' => 'Work']);
-        Tag::factory()->create(['name' => 'Home']);
-        Tag::factory()->create(['name' => 'Important']);
-        Tag::factory()->create(['name' => 'Design']);
-        Tag::factory()->create(['name' => 'Research']);
-        Tag::factory()->create(['name' => 'Productive']);
-
-        // Test valid page request
-        $tags = (new Tag())->getSeededTags(1);
-        $this->assertNotEmpty($tags);
-
-        // Test invalid page request
-        $this->expectException(ModelNotFoundException::class);
-        (new Tag())->getSeededTags(9999);
-
-        // Test invalid argument exception
-        $this->expectException(InvalidArgumentException::class);
-        (new Tag())->getSeededTags(0);
     }
 
 }

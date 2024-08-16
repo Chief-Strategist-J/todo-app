@@ -22,9 +22,9 @@ class TagController extends Controller
 {
     public function getAllTags(Request $request): JsonResponse
     {
-        
+
         $taskId = (int) $request->input("todo_id");
-        $page = (int) $request->input('page', 1); 
+        $page = (int) $request->input('page', 1);
 
         if ($taskId <= 0) {
             return errorMsg("Invalid Task ID", 400);
@@ -70,9 +70,6 @@ class TagController extends Controller
 
     public function createTag(CreateTagRequest $request): JsonResponse
     {
-      
-        
-
         $tagModel = new Tag();
         $result = $tagModel->createTag($request);
 
@@ -152,8 +149,17 @@ class TagController extends Controller
 
     }
 
-    public function searchTags(Request $request)
+    public function searchTags(Request $request): JsonResponse
     {
-
+        try {
+            $tags = (new Tag())->searchTags($request);
+            return successMessage('Tags retrieved successfully.', true, $tags);
+        } catch (InvalidArgumentException $e) {
+            return errorMsg($e->getMessage(), 400);
+        } catch (ModelNotFoundException $e) {
+            return errorMsg($e->getMessage(), 404);
+        } catch (Exception $e) {
+            return errorMsg('An error occurred while fetching tags.', 500, $e->getMessage());
+        }
     }
 }

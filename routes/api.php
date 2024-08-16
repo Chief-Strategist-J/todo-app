@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
         
         Route::post('/{tag}/archive', [TagController::class, 'archiveTag'])->name('archive');
         Route::post('/{tag}/restore', [TagController::class, 'restoreTag'])->name('restore');
-        Route::get('/search', [TagController::class, 'searchTags'])->name('search');
+        Route::post('/search', [TagController::class, 'searchTags'])->name('search');
     });
 });
 
