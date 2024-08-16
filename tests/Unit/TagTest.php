@@ -789,7 +789,8 @@ class TagTest extends TestCase
         $this->assertTrue($result);
 
         foreach ($tagIds as $id) {
-            $this->assertDatabaseMissing('tags', ['id' => $id]);
+            // Check that the tags are soft-deleted
+            $this->assertDatabaseHas('tags', ['id' => $id, 'deleted_at' => now()]);
         }
 
         foreach ($tagIds as $id) {
@@ -799,19 +800,21 @@ class TagTest extends TestCase
 
     public function testBulkDeleteTagsIgnoresNonExistentTags()
     {
-        
         $tags = Tag::factory()->count(2)->create();
         $tagIds = $tags->pluck('id')->toArray();
-        $tagIds[] = 999;
+        $tagIds[] = 999; // Adding a non-existent tag ID
         $request = new Request(['tag_ids' => $tagIds]);
         $result = (new Tag())->bulkDeleteTags($request);
         $this->assertTrue($result);
+
         foreach ($tags as $tag) {
-            $this->assertDatabaseMissing('tags', ['id' => $tag->id]);
+            // Check that the existing tags are soft-deleted
+            $this->assertDatabaseHas('tags', ['id' => $tag->id, 'deleted_at' => now()]);
             $this->assertDatabaseMissing('tag_todo', ['tag_id' => $tag->id]);
         }
-    }
 
+        $this->assertDatabaseMissing('tags', ['id' => 999]);
+    }
 
 
     public function testBulkDeleteTagsHandlesGeneralException()
@@ -820,6 +823,24 @@ class TagTest extends TestCase
         DB::shouldReceive('table')->andThrow(new Exception('General error'));
         $this->expectException(Exception::class);
         (new Tag())->bulkDeleteTags($request);
+    }
+
+    public function testRestoreTagSuccessfully()
+    {
+        // First, create a tag and soft delete it
+        $tag = Tag::factory()->create();
+        $tag->delete(); // Soft delete the tag
+
+        // Check that the tag is soft-deleted
+        $this->assertNotNull(Tag::withTrashed()->find($tag->id)->deleted_at);
+
+        // Attempt to restore the tag
+        $request = new Request(['tag_id' => $tag->id]);
+        $result = (new Tag())->restoreTag($request);
+        $this->assertTrue($result);
+
+        // Verify that the tag is restored
+        $this->assertNull(Tag::find($tag->id)->deleted_at);
     }
 
 }

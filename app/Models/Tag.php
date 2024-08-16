@@ -140,21 +140,16 @@ class Tag extends Model
                 }
             }
 
-            // Delete the associated tags in `tag_todo` table
             DB::table('tag_todo')->whereIn('todo_id', $todoIds)->delete();
 
             foreach ($tagsData as $tagData) {
-                // Ensure color is treated as a string
                 $tagData['color'] = (string) $tagData['color'];
-
-                // Check if the tag already exists
                 $existingTag = DB::table('tags')
                     ->where('name', $tagData['name'])
                     ->first();
 
                 if ($existingTag) {
                     $tagId = $existingTag->id;
-                    // Update the existing tag
                     DB::table('tags')
                         ->where('id', $tagId)
                         ->update([
@@ -162,7 +157,6 @@ class Tag extends Model
                             'updated_at' => now(),
                         ]);
                 } else {
-                    // Create a new tag
                     $tagId = DB::table('tags')->insertGetId([
                         'uuid' => Str::uuid(),
                         'slug' => Str::slug($tagData['name']),
@@ -174,7 +168,6 @@ class Tag extends Model
                     ]);
                 }
 
-                // Associate the tag with the todo
                 DB::table('tag_todo')->insert([
                     'tag_id' => $tagId,
                     'todo_id' => $tagData['todo_id'],
@@ -209,7 +202,6 @@ class Tag extends Model
         DB::beginTransaction();
 
         try {
-            // Get the existing tag IDs that are present in the database
             $existingTagIds = DB::table('tags')->whereIn('id', $tagIds)->pluck('id')->toArray();
 
             if (empty($existingTagIds)) {
@@ -217,32 +209,49 @@ class Tag extends Model
                 return true;
             }
 
-            // Delete the associated entries in the `tag_todo` table
             DB::table('tag_todo')->whereIn('tag_id', $existingTagIds)->delete();
-
-            // Delete the tags from the tags table
-            DB::table('tags')->whereIn('id', $existingTagIds)->delete();
-
+            DB::table('tags')->whereIn('id', $existingTagIds)->update(['deleted_at' => now()]);
             DB::commit();
 
             return true;
         } catch (QueryException $e) {
             DB::rollBack();
-            Log::error('Query error during bulk tag deletion: ' . $e->getMessage(), [
-                'tagIds' => $tagIds,
-            ]);
-
+            Log::error('Query error during bulk tag deletion: ' . $e->getMessage(), ['tagIds' => $tagIds]);
             throw $e;
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Error during bulk tag deletion: ' . $e->getMessage(), [
-                'tagIds' => $tagIds,
-            ]);
-
+            Log::error('Error during bulk tag deletion: ' . $e->getMessage(), ['tagIds' => $tagIds]);
             throw $e;
         }
     }
 
+
+    public function restoreTag(Request $request): bool
+    {
+        $tagId = $request->input('tag_id');
+        DB::beginTransaction();
+
+        try {
+            $existingTag = self::onlyTrashed()->find($tagId);
+
+            if (!$existingTag) {
+                DB::commit();
+                return true;
+            }
+
+            $existingTag->restore();
+            DB::commit();
+            return true;
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Query error during tag restoration: ' . $e->getMessage(), ['tagId' => $tagId]);
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error during tag restoration: ' . $e->getMessage(), ['tagId' => $tagId]);
+            throw $e;
+        }
+    }
 
     public function updateTag(Request $request): int
     {
@@ -270,7 +279,6 @@ class Tag extends Model
 
     public function getTagsByTaskId($taskId, $page = 1)
     {
-        // Validate the task ID
         if (!is_numeric($taskId)) {
             throw new InvalidArgumentException("Invalid Task ID");
         }
@@ -913,7 +921,7 @@ class Tag extends Model
         }
 
         try {
-            
+
 
             return DB::table('tags AS t')
                 ->select('t.id', 't.name', 't.slug', 't.created_by', 't.color')

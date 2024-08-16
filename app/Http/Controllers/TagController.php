@@ -151,9 +151,20 @@ class TagController extends Controller
 
     }
 
-    public function restoreTag($id)
+    public function restoreTag(Request $request): JsonResponse
     {
+        $tagId = $request->input('tag_id');
 
+        try {
+            $tag = new Tag();
+            $tag->restoreTag($request);
+
+            return successMessage('Tag restored successfully.');
+        } catch (QueryException $e) {
+            return errorMsg('Query error during tag restoration.', 500, $e->getMessage());
+        } catch (Exception $e) {
+            return errorMsg('Error during tag restoration.', 500, $e->getMessage());
+        }
     }
 
     public function searchTags(Request $request): JsonResponse
