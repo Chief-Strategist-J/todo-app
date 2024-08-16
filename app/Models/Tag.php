@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -75,80 +74,56 @@ class Tag extends Model
         parent::boot();
 
         static::created(function ($tag) {
-            Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
-            Cache::forget('popular_tags_' . $tag->id);
-            Cache::forget('user_tags');
-            Tag::cacheTags();
+
+
         });
 
         static::updated(function ($tag) {
-            Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
-            Cache::forget('popular_tags_' . $tag->id);
-            Cache::forget('user_tags');
-            Tag::cacheTags();
+
         });
 
         static::deleted(function ($tag) {
-            Cache::forget("tags_for_task_{$tag->todo_id}_page_1");
-            Cache::forget('popular_tags_' . $tag->id);
-            Cache::forget('user_tags');
-            Tag::cacheTags();
 
         });
     }
 
 
 
-    public function createTag(Request $request, $taskId): bool|int
+    public function createTag(Request $request): bool|int
     {
-        $tag = new Tag();
-        foreach ($this->fillable as $field) {
-            if ($request->has($field)) {
-                $tag->$field = $request->input($field);
-            }
-        }
-        return $tag->save();
-    }
+        DB::beginTransaction();
+        try {
 
-    function getOrCreateTag($name, $data = [])
-    {
-        $tag = DB::table('tags')->where('name', $name)->first();
+            $data = $request->only($this->fillable);
 
-        if (!$tag) {
-            $tagId = DB::table('tags')->insertGetId(array_merge([
-                'uuid' => (string) Str::uuid(),
-                'name' => $name,
-                'slug' => Str::slug($name),
-                'created_by' => $data['created_by'],
-                'todo_id' => $data['todo_id'] ?? null,
-            ], $data));
+            $data['uuid'] = $data['uuid'] ?? (string) Str::uuid();
+            $data['slug'] = Str::slug($data['name']);
 
-            $tag = DB::table('tags')->find($tagId);
-        }
+            $tag = Tag::updateOrCreate(
+                ['name' => $data['name']],
+                array_merge($data, ['updated_at' => now()])
+            );
 
-        return $tag;
-    }
+            DB::commit();
 
-    function assignTagToTask($taskId, $tagName, $data = [])
-    {
-        $tag = $this->getOrCreateTag($tagName, $data);
-
-        // Check if the tag is already assigned to the task
-        $exists = DB::table('tag_todo')
-            ->where('tag_id', $tag->id)
-            ->where('todo_id', $taskId)
-            ->exists();
-
-        if (!$exists) {
-            // If not, assign the tag to the task
-            DB::table('tag_todo')->insert([
-                'tag_id' => $tag->id,
-                'todo_id' => $taskId,
-                'created_at' => now(),
-                'updated_at' => now(),
+            return $tag->id;
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Query error during tag creation: ' . $e->getMessage(), [
+                'data' => $data,
             ]);
+
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error during tag creation: ' . $e->getMessage(), [
+                'data' => $data,
+            ]);
+
+            throw $e;
         }
     }
+
 
     public function createBulkTags(BulkCreateTagsRequest $request): bool
     {
@@ -288,16 +263,13 @@ class Tag extends Model
             throw new InvalidArgumentException('Limit must be a positive number and less than or equal to 50.');
         }
 
-        $cacheKey = 'popular_tags_' . $page;
+        return DB::table('tags')
+            ->select('id', 'name', 'popularity_score')
+            ->whereNull('deleted_at')
+            ->orderBy('popularity_score', 'desc')
+            ->paginate($limit)
+            ->items();
 
-        return Cache::remember($cacheKey, now()->addWeek(), function () use ($limit) {
-            return DB::table('tags')
-                ->select('id', 'name', 'popularity_score')
-                ->whereNull('deleted_at')
-                ->orderBy('popularity_score', 'desc')
-                ->paginate($limit)
-                ->items();
-        });
     }
 
     public function getUserTags(int $userId, int $limit = 50, int $page = 1): array
@@ -306,18 +278,16 @@ class Tag extends Model
             throw new InvalidArgumentException('Limit must be a positive number and less than or equal to 50.');
         }
 
-        $cacheKey = 'user_tags_' . $userId . '_' . $page;
-
         try {
-            return Cache::remember($cacheKey, now()->addWeek(), function () use ($userId, $limit) {
-                return DB::table('tags')
-                    ->select('id', 'name', 'created_by')
-                    ->where('created_by', $userId)
-                    ->whereNull('deleted_at')
-                    ->orderBy('created_at', 'desc')
-                    ->paginate($limit)
-                    ->items();
-            });
+
+            return DB::table('tags')
+                ->select('id', 'name', 'created_by')
+                ->where('created_by', $userId)
+                ->whereNull('deleted_at')
+                ->orderBy('created_at', 'desc')
+                ->paginate($limit)
+                ->items();
+
         } catch (ModelNotFoundException $e) {
             throw new ModelNotFoundException('Tags not found for the given user.');
         } catch (QueryException $e) {
@@ -934,15 +904,6 @@ class Tag extends Model
         }
     }
 
-    public static function cacheTags(): void
-    {
-        Cache::forget(Tag::generateCacheKey());
-    }
-
-    public static function generateCacheKey(int $page = 1): string
-    {
-        return 'seeded_tags_page_' . $page;
-    }
 
     public function todos()
     {

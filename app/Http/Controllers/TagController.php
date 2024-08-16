@@ -70,13 +70,11 @@ class TagController extends Controller
 
     public function createTag(CreateTagRequest $request): JsonResponse
     {
-        $taskId = (int) $request->input('todo_id');
-        if ($taskId <= 0) {
-            return errorMsg("Invalid Task ID", 400);
-        }
+      
+        
 
         $tagModel = new Tag();
-        $result = $tagModel->createTag($request, $taskId);
+        $result = $tagModel->createTag($request);
 
         if (!$result) {
             return errorMsg("Failed to create tag", 500);
