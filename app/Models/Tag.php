@@ -156,21 +156,38 @@ class Tag extends Model
         DB::beginTransaction();
 
         try {
-            $todoIds = [];
-            foreach ($tagsData as $tagData) {
-                $todoIds[] = $tagData['todo_id'];
-            }
-
-            $existingTodos = DB::table('todos')->whereIn('id', array_unique($todoIds))->pluck('id')->toArray();
+            $todoIds = array_unique(array_column($tagsData, 'todo_id'));
+            $existingTodos = DB::table('todos')->whereIn('id', $todoIds)->pluck('id')->toArray();
 
             foreach ($tagsData as $tagData) {
                 if (!in_array($tagData['todo_id'], $existingTodos)) {
                     throw new Exception('The specified todo ID ' . $tagData['todo_id'] . ' does not exist.');
                 }
+            }
 
-                $existingTag = DB::table('tags')->where('name', $tagData['name'])->where('created_by', $tagData['created_by'])->first();
+            // Delete the associated tags in `tag_todo` table
+            DB::table('tag_todo')->whereIn('todo_id', $todoIds)->delete();
 
-                if (!$existingTag) {
+            foreach ($tagsData as $tagData) {
+                // Ensure color is treated as a string
+                $tagData['color'] = (string) $tagData['color'];
+
+                // Check if the tag already exists
+                $existingTag = DB::table('tags')
+                    ->where('name', $tagData['name'])
+                    ->first();
+
+                if ($existingTag) {
+                    $tagId = $existingTag->id;
+                    // Update the existing tag
+                    DB::table('tags')
+                        ->where('id', $tagId)
+                        ->update([
+                            'color' => $tagData['color'],
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    // Create a new tag
                     $tagId = DB::table('tags')->insertGetId([
                         'uuid' => Str::uuid(),
                         'slug' => Str::slug($tagData['name']),
@@ -180,14 +197,15 @@ class Tag extends Model
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
-                } else {
-                    $tagId = $existingTag->id;
                 }
 
-                DB::table('tag_todo')->updateOrInsert(
-                    ['tag_id' => $tagId, 'todo_id' => $tagData['todo_id']],
-                    ['created_at' => now(), 'updated_at' => now()]
-                );
+                // Associate the tag with the todo
+                DB::table('tag_todo')->insert([
+                    'tag_id' => $tagId,
+                    'todo_id' => $tagData['todo_id'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
 
             DB::commit();
@@ -209,9 +227,6 @@ class Tag extends Model
             throw $e;
         }
     }
-
-
-
 
 
     public function updateTag(Request $request): int
@@ -259,9 +274,9 @@ class Tag extends Model
         $results = DB::table('tags')
             ->join('tag_todo', 'tags.id', '=', 'tag_todo.tag_id')
             ->where('tag_todo.todo_id', $taskId)
-            ->whereNull('tags.deleted_at') 
+            ->whereNull('tags.deleted_at')
             ->orderBy('tags.id')
-            ->select('tags.id', 'tags.name', 'tags.color', 'tags.slug', 'tags.created_at') 
+            ->select('tags.id', 'tags.name', 'tags.color', 'tags.slug', 'tags.created_at')
             ->paginate(50)->items();
 
         return $results;
@@ -890,24 +905,22 @@ class Tag extends Model
         try {
             $key = Tag::generateCacheKey($page);
 
-            return Cache::remember($key, now()->addWeek(), function () use ($page) {
-                return DB::table('tags AS t')
-                    ->select('t.id', 't.name', 't.slug', 't.created_by', 't.color')
-                    ->whereIn('t.name', [
-                        'Urgent',
-                        'Personal',
-                        'Work',
-                        'Home',
-                        'Important',
-                        'Design',
-                        'Research',
-                        'Productive'
-                    ])
-                    ->whereNull('t.deleted_at')
-                    ->orderBy('t.name')
-                    ->paginate(50, ['*'], 'page', $page)
-                    ->items();
-            });
+            return DB::table('tags AS t')
+                ->select('t.id', 't.name', 't.slug', 't.created_by', 't.color')
+                ->whereIn('t.name', [
+                    'Urgent',
+                    'Personal',
+                    'Work',
+                    'Home',
+                    'Important',
+                    'Design',
+                    'Research',
+                    'Productive'
+                ])
+                ->whereNull('t.deleted_at')
+                ->orderBy('t.name')
+                ->paginate(50, ['*'], 'page', $page)
+                ->items();
 
         } catch (ModelNotFoundException $e) {
             Log::error('Tag model not found: ' . $e->getMessage());
