@@ -779,4 +779,47 @@ class TagTest extends TestCase
         (new Tag)->getTagsByVersion('1.0');
     }
 
+    public function testBulkDeleteTagsSuccessfullyDeletesTags()
+    {
+        $tags = Tag::factory()->count(3)->create();
+
+        $tagIds = $tags->pluck('id')->toArray();
+        $request = new Request(['tag_ids' => $tagIds]);
+        $result = (new Tag())->bulkDeleteTags($request);
+        $this->assertTrue($result);
+
+        foreach ($tagIds as $id) {
+            $this->assertDatabaseMissing('tags', ['id' => $id]);
+        }
+
+        foreach ($tagIds as $id) {
+            $this->assertDatabaseMissing('tag_todo', ['tag_id' => $id]);
+        }
+    }
+
+    public function testBulkDeleteTagsIgnoresNonExistentTags()
+    {
+        
+        $tags = Tag::factory()->count(2)->create();
+        $tagIds = $tags->pluck('id')->toArray();
+        $tagIds[] = 999;
+        $request = new Request(['tag_ids' => $tagIds]);
+        $result = (new Tag())->bulkDeleteTags($request);
+        $this->assertTrue($result);
+        foreach ($tags as $tag) {
+            $this->assertDatabaseMissing('tags', ['id' => $tag->id]);
+            $this->assertDatabaseMissing('tag_todo', ['tag_id' => $tag->id]);
+        }
+    }
+
+
+
+    public function testBulkDeleteTagsHandlesGeneralException()
+    {
+        $request = new Request(['tag_ids' => [1, 2, 3]]);
+        DB::shouldReceive('table')->andThrow(new Exception('General error'));
+        $this->expectException(Exception::class);
+        (new Tag())->bulkDeleteTags($request);
+    }
+
 }
