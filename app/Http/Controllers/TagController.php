@@ -134,9 +134,16 @@ class TagController extends Controller
         }
     }
 
-    public function bulkDeleteTags(Request $request)
+    public function bulkDeleteTags(Request $request): JsonResponse
     {
-
+        try {
+            $result = (new Tag())->bulkDeleteTags($request);
+            return successMessage('Tags deleted successfully.', true, ['deleted' => $result]);
+        } catch (QueryException $e) {
+            return errorMsg('A database error occurred during tag deletion.', 500, $e->getMessage());
+        } catch (Exception $e) {
+            return errorMsg('An error occurred during tag deletion.', 500, $e->getMessage());
+        }
     }
 
     public function archiveTag($id)

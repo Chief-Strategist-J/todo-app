@@ -203,6 +203,46 @@ class Tag extends Model
         }
     }
 
+    public function bulkDeleteTags(Request $request): bool
+    {
+        $tagIds = $request->input('tag_ids');
+        DB::beginTransaction();
+
+        try {
+            // Get the existing tag IDs that are present in the database
+            $existingTagIds = DB::table('tags')->whereIn('id', $tagIds)->pluck('id')->toArray();
+
+            if (empty($existingTagIds)) {
+                DB::commit();
+                return true;
+            }
+
+            // Delete the associated entries in the `tag_todo` table
+            DB::table('tag_todo')->whereIn('tag_id', $existingTagIds)->delete();
+
+            // Delete the tags from the tags table
+            DB::table('tags')->whereIn('id', $existingTagIds)->delete();
+
+            DB::commit();
+
+            return true;
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Query error during bulk tag deletion: ' . $e->getMessage(), [
+                'tagIds' => $tagIds,
+            ]);
+
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error during bulk tag deletion: ' . $e->getMessage(), [
+                'tagIds' => $tagIds,
+            ]);
+
+            throw $e;
+        }
+    }
+
 
     public function updateTag(Request $request): int
     {
@@ -873,7 +913,7 @@ class Tag extends Model
         }
 
         try {
-            $key = Tag::generateCacheKey($page);
+            
 
             return DB::table('tags AS t')
                 ->select('t.id', 't.name', 't.slug', 't.created_by', 't.color')
