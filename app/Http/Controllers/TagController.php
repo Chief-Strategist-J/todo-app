@@ -112,6 +112,7 @@ class TagController extends Controller
             } else {
                 return errorMsg('Failed to delete tag', 500);
             }
+
         } catch (ValidationException $e) {
             return errorMsg($e->getMessage(), 422, $e->errors());
         } catch (Exception $e) {
@@ -156,7 +157,6 @@ class TagController extends Controller
         try {
             $tag = new Tag();
             $tag->restoreTag($request);
-
             return successMessage('Tag restored successfully.');
         } catch (QueryException $e) {
             return errorMsg('Query error during tag restoration.', 500, $e->getMessage());
@@ -192,7 +192,7 @@ class TagController extends Controller
         if (!$tag) {
             return errorMsg('Tag not found.', 404);
         }
-        
+
         return successMessage('Tag retrieved successfully.', true, $tag->toArray());
     }
 

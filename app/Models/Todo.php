@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -25,7 +24,7 @@ use function App\Helper\successMessage;
 class Todo extends Model
 {
     use HasFactory, SoftDeletes;
-    const cacheKeyForTodoList = 'todoList';
+
 
     protected $fillable = [
         'title',
@@ -126,10 +125,7 @@ class Todo extends Model
     }
 
 
-    private function clearTodoListCache(): void
-    {
-        Cache::forget(Todo::cacheKeyForTodoList);
-    }
+
 
     public function updateTodo(UpdateTodoRequest $request): JsonResponse
     {
@@ -168,9 +164,9 @@ class Todo extends Model
     {
         $minutesInWeek = 7 * 24 * 60;
         $fields = ['id', 'title', 'notes', 'created_by', 'firebase_todo_id', 'start_time', 'end_time', 'date', 'priority'];
-        return Cache::remember(Todo::cacheKeyForTodoList, $minutesInWeek, function () use ($fields) {
-            return Todo::select($fields)->get();
-        });
+
+        return Todo::select($fields)->get();
+
     }
 
     public function getPerPageTodoList(): array
@@ -181,18 +177,18 @@ class Todo extends Model
         $page = request('page', 1);
         $perPage = 15;
         $offset = ($page - 1) * $perPage;
-        $cacheKey = "todos_page_{$page}";
 
-        $paginator = Cache::remember($cacheKey, $minutesInWeek, function () use ($fields, $offset, $perPage) {
-            $fieldsString = implode(', ', $fields);
 
-            $todosQuery = DB::table('todos')
-                ->select(DB::raw($fieldsString))
-                ->selectRaw('COUNT(*) OVER() AS total_items')
-                ->paginate($this->perPage);
 
-            return $todosQuery;
-        });
+        $fieldsString = implode(', ', $fields);
+
+        $todosQuery = DB::table('todos')
+            ->select(DB::raw($fieldsString))
+            ->selectRaw('COUNT(*) OVER() AS total_items')
+            ->paginate($this->perPage);
+
+        $paginator = $todosQuery;
+
 
         return [
             'current_page' => $paginator->currentPage(),
