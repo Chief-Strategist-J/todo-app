@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\BulkCreateTagsRequest;
 use App\Http\Requests\CreateTagRequest;
-use App\Http\Requests\StoreTagRequest;
-use App\Http\Requests\UpdateTagRequest;
 use App\Models\Tag;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -180,4 +178,22 @@ class TagController extends Controller
             return errorMsg('An error occurred while fetching tags.', 500, $e->getMessage());
         }
     }
+
+    public function getTagByTagId(Request $request): JsonResponse
+    {
+        $tagId = $request->input('id');
+
+        if (!$tagId) {
+            return errorMsg('Tag ID is required.', 400);
+        }
+
+        $tag = (new Tag())->getTagById($tagId);
+
+        if (!$tag) {
+            return errorMsg('Tag not found.', 404);
+        }
+        
+        return successMessage('Tag retrieved successfully.', true, $tag->toArray());
+    }
+
 }

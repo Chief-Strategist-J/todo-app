@@ -843,4 +843,22 @@ class TagTest extends TestCase
         $this->assertNull(Tag::find($tag->id)->deleted_at);
     }
 
+    
+    public function testGetTagByIdSuccessfullyReturnsTag()
+    {
+        // Arrange: Create a tag in the database
+        $tag = Tag::factory()->create(); // Assuming you have a factory set up for Tag
+
+        // Act: Retrieve the tag by its ID
+        $retrievedTag = (new Tag())->getTagById($tag->id);
+
+        // Assert: Check if the retrieved tag matches the created tag
+        $this->assertNotNull($retrievedTag);
+        $this->assertEquals($tag->id, $retrievedTag->id);
+        $this->assertEquals($tag->name, $retrievedTag->name);
+        $this->assertEquals($tag->slug, $retrievedTag->slug);
+        $this->assertEquals($tag->tag_type, $retrievedTag->tag_type);
+        $this->assertEquals($tag->is_active, $retrievedTag->is_active);
+    }
+
 }

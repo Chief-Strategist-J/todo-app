@@ -271,6 +271,12 @@ class Tag extends Model
         return $tag->save();
     }
 
+    public function getTagById($tagId)
+    {
+        $tag = self::find($tagId);
+        return $tag;
+    }
+
 
     public function deleteTag($id): int
     {

@@ -34,6 +34,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [TagController::class, 'getAllTags'])->name('getAll');
         Route::post('/createTag', [TagController::class, 'createTag'])->name('create');
         Route::put('/', [TagController::class, 'updateTag'])->name('update');
+        Route::post('/getTagDetail', [TagController::class, 'getTagByTagId'])->name('update');
         Route::delete('/', [TagController::class, 'deleteTag'])->name('delete');
         
         Route::post('/bulk', [TagController::class, 'bulkCreateTags'])->name('bulkCreate');
