@@ -11,7 +11,6 @@ class CreateTagRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'uuid' => 'nullable|string',
             'is_active' => 'nullable|boolean',
             'order' => 'nullable|integer',
             'version' => 'nullable|integer',
@@ -21,9 +20,8 @@ class CreateTagRequest extends FormRequest
             'user_interaction_count' => 'nullable|integer',
             'popularity_score' => 'nullable|numeric',
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|max:255',
             'meta_title' => 'nullable|string|max:255',
-            'color' => 'nullable|string|max:7',
+            'color' => 'nullable|string',
             'image_url' => 'nullable|url',
             'tag_type' => 'nullable|string',
             'content_type' => 'nullable|string',
