@@ -360,8 +360,9 @@ class Tag extends Model
 
         try {
 
+
             return DB::table('tags')
-                ->select('id', 'name', 'created_by')
+                ->select('id', 'name', 'slug', 'created_by', 'color')
                 ->where('created_by', $userId)
                 ->whereNull('deleted_at')
                 ->orderBy('created_at', 'desc')

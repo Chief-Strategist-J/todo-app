@@ -64,7 +64,37 @@ class TagController extends Controller
         }
     }
 
+    public function getAllTagsByUserId(Request $request): JsonResponse
+    {
+        $userId = (int) $request->input('userId');
+        $limit = (int) $request->input('limit', 50);  // Default limit to 50 if not provided
+        $page = (int) $request->input('page', 1);     // Default page to 1 if not provided
 
+        if ($userId <= 0) {
+            return errorMsg("Invalid User ID", 400);
+        }
+
+        if ($page < 1) {
+            return errorMsg("Invalid pagination page number", 400);
+        }
+
+        if ($limit <= 0 || $limit > 50) {
+            return errorMsg("Limit must be a positive number and less than or equal to 50.", 400);
+        }
+
+        try {
+            $tags = resolve(Tag::class)->getUserTags($userId, $limit, $page);
+            return successMessage(data: $tags);
+        } catch (ModelNotFoundException $e) {
+            return errorMsg($e->getMessage(), 404);
+        } catch (InvalidArgumentException $e) {
+            return errorMsg($e->getMessage(), 400);
+        } catch (QueryException $e) {
+            return errorMsg("A database error occurred. Please try again later.", 500);
+        } catch (Exception $e) {
+            return errorMsg("An unexpected error occurred. Please try again later.", 500);
+        }
+    }
 
     public function createTag(CreateTagRequest $request): JsonResponse
     {
