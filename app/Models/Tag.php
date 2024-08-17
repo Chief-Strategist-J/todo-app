@@ -225,6 +225,32 @@ class Tag extends Model
         }
     }
 
+    public function bulkDeleteTagsByTodoId(Request $request): bool
+    {
+        $todoId = $request->input('todo_id');
+        DB::beginTransaction();
+
+        try {            
+            $tagIds = DB::table('tag_todo')->where('todo_id', $todoId)->pluck('tag_id')->toArray();
+            if (empty($tagIds)) {
+                DB::commit();
+                return true;
+            }
+
+            DB::table('tag_todo')->where('todo_id', $todoId)->delete();
+            DB::commit();
+            return true;
+        } catch (QueryException $e) {
+            DB::rollBack();
+            Log::error('Query error during bulk tag deletion by todoId: ' . $e->getMessage(), ['todoId' => $todoId]);
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error during bulk tag deletion by todoId: ' . $e->getMessage(), ['todoId' => $todoId]);
+            throw $e;
+        }
+    }
+
 
     public function restoreTag(Request $request): bool
     {

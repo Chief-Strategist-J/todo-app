@@ -131,10 +131,7 @@ class Todo extends Model
     {
         $todo = Todo::find($request->input("todo_id"));
 
-        if (is_null($todo))
-            return successMessage(data: ['message' => "todo id does not exist"]);
-
-        $this->clearTodoListCache();
+        if (is_null($todo)) return successMessage(data: ['message' => "todo id does not exist"]);
 
         $this->processTodoFields($request, $todo);
 
@@ -150,8 +147,6 @@ class Todo extends Model
         $this->processTodoFields($request, $todo);
 
         $todo->save();
-
-        $this->clearTodoListCache();
 
         if ($request->input('is_want_to_delete_todo_at_end_time')) {
             DeleteExpiredTodoJob::dispatch($todo->id)->delay(getIndianTime($request->input('end_time')));

@@ -42,6 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
         
         Route::post('/{tag}/archive', [TagController::class, 'archiveTag'])->name('archive');
         Route::post('/{tag}/restore', [TagController::class, 'restoreTag'])->name('restore');
+        Route::post('/bulkDeleteTagsByTodoId', [TagController::class, 'bulkDeleteTagsByTodoId'])->name('bulkDeleteTagsByTodoId');
+        
         Route::post('/search', [TagController::class, 'searchTags'])->name('search');
     });
 });

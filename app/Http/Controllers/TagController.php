@@ -196,4 +196,26 @@ class TagController extends Controller
         return successMessage('Tag retrieved successfully.', true, $tag->toArray());
     }
 
+    public function bulkDeleteTagsByTodoId(Request $request): JsonResponse
+    {
+        $todoId = $request->input('todo_id');
+
+        if (!$todoId) {
+            return errorMsg('Todo ID is required.', 400);
+        }
+
+        try {
+            $tagModel = new Tag();
+            $success = $tagModel->bulkDeleteTagsByTodoId($request);
+
+            if ($success) {
+                return successMessage('Tags unlinked from Todo successfully.', true);
+            } else {
+                return errorMsg('No tags were unlinked from the Todo.', 404);
+            }
+        } catch (Exception $e) {
+            return errorMsg('An error occurred while unlinking tags from the Todo.', 500);
+        }
+    }
+
 }
