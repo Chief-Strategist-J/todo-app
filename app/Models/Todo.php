@@ -131,7 +131,8 @@ class Todo extends Model
     {
         $todo = Todo::find($request->input("todo_id"));
 
-        if (is_null($todo)) return successMessage(data: ['message' => "todo id does not exist"]);
+        if (is_null($todo))
+            return successMessage(data: ['message' => "todo id does not exist"]);
 
         $this->processTodoFields($request, $todo);
 
@@ -157,11 +158,36 @@ class Todo extends Model
 
     public function getTodoList(): Collection
     {
-        $minutesInWeek = 7 * 24 * 60;
-        $fields = ['id', 'title', 'notes', 'created_by', 'firebase_todo_id', 'start_time', 'end_time', 'date', 'priority'];
+        $fields = [
+            'todos.id',
+            'todos.title',
+            'todos.notes',
+            'todos.created_by',
+            'todos.firebase_todo_id',
+            'todos.start_time',
+            'todos.end_time',
+            'todos.date',
+            'todos.description',
+            'todos.priority'
+        ];
 
-        return Todo::select($fields)->get();
+        // Query to get todos with tags names, and apply filters
+        $todos = Todo::select($fields)
+            ->leftJoin('tag_todo', 'todos.id', '=', 'tag_todo.todo_id')
+            ->leftJoin('tags', 'tag_todo.tag_id', '=', 'tags.id')
+            ->whereNull('todos.deleted_at')
+            ->where('todos.is_archived', false)
+            ->groupBy('todos.id', 'todos.title', 'todos.notes', 'todos.created_by', 'todos.firebase_todo_id', 'todos.start_time', 'todos.end_time', 'todos.date', 'todos.priority','todos.description')
+            ->selectRaw('GROUP_CONCAT(tags.name) as tag_names')
+            ->get();
 
+        // Convert `tag_names` to list
+        $todos->transform(function ($todo) {
+            $todo->tag_names = explode(',', $todo->tag_names);
+            return $todo;
+        });
+
+        return $todos;
     }
 
     public function getPerPageTodoList(): array
