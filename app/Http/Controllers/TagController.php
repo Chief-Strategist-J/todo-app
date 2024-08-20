@@ -140,7 +140,7 @@ class TagController extends Controller
             if ($result) {
                 return successMessage('Tag deleted successfully');
             } else {
-                return errorMsg('Failed to delete tag', 500);
+                return errorMsg('Failed to delete tag', 500); 
             }
 
         } catch (ValidationException $e) {
