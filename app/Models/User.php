@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -83,5 +84,12 @@ class User extends Authenticatable
     public function educations(): HasMany
     {
         return $this->hasMany(Education::class);
+    }
+
+    public function pomodoros(): BelongsToMany
+    {
+        return $this->belongsToMany(Pomodoro::class, 'pomodoro_user')
+            ->withPivot(['todo_id', 'assigned_duration', 'completed_at', 'role', 'is_active', 'is_completed'])
+            ->withTimestamps();
     }
 }

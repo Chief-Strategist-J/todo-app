@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -223,5 +224,10 @@ class Todo extends Model
     public function tags()
     {
         return $this->belongsToMany(Tag::class, 'tag_todo', 'todo_id', 'tag_id');
+    }
+
+    public function pomodoros(): HasMany
+    {
+        return $this->hasMany(Pomodoro::class);
     }
 }
