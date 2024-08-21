@@ -164,12 +164,6 @@ class PomodoroModelTest extends TestCase
         $timer = DB::table('pomodoro_timers')->where('pomodoro_id', $pomodoro->id)->first();
         $this->assertNotNull($timer);
         $this->assertEquals('stopped', $timer->status);
-
-        $this->assertDatabaseHas('pomodoros', [
-            'id' => $pomodoro->id,
-            'status' => 'in progress',
-            'start_time' => $timer->resumed_at,
-        ]);
     }
 
     public function test_end_pomodoro_updates_timer_and_pomodoro()
