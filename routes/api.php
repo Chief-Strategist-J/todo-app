@@ -10,12 +10,6 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::resource('todo', TodoController::class);
-Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodosPagignated']);
-Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
-Route::post('/testing', [TodoController::class, 'testing']);
-
-
 
 Route::post('loginOrSignUp', [UserController::class, 'loginOrSignUp'])->name('loginOrSignUp');
 Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
@@ -47,6 +41,19 @@ Route::middleware('auth:sanctum')->group(function () {
         
         Route::post('/search', [TagController::class, 'searchTags'])->name('search');
     });
+
+    Route::prefix('todo')->name('todo.')->group(function () {
+        Route::get('/', [TodoController::class, 'index'])->name('index');
+        Route::post('/store', [TodoController::class, 'store'])->name('store');
+        Route::post('/deleteTodo', [TodoController::class, 'deleteTodo'])->name('deleteTodo');  // Delete Todo route
+        Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
+        Route::post('/{todo}', [TodoController::class, 'update'])->name('update');
+        Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodosPagignated'])->name('getlistOfTodosPagignated');
+        Route::post('/{todo}', [TodoController::class, 'show'])->name('show');  
+        Route::post('/{todo}/edit', [TodoController::class, 'edit'])->name('edit'); 
+        Route::post('/{todo}/create', [TodoController::class, 'create'])->name('create'); 
+    });
+    
 });
 
 

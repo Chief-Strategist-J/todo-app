@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 use function App\Helper\errorMsg;
 use function App\Helper\getIndianTime;
@@ -99,19 +100,21 @@ class TodoController extends Controller
         return resolve(Todo::class)->updateTodo($request);
     }
 
-    public function destroy(Request $request): JsonResponse
+    public function deleteTodo(Request $request): JsonResponse
     {
         try {
             $todo = Todo::find($request->input("todo_id"));
+            Log::info("print".$todo);
 
             if ($todo) {
-                $todo->delete();
+                $todo->forceDelete();
                 return successMessage(data: 'TODO ID: ' . $request->input("todo_id") . ' is deleted from record');
             } else {
                 return successMessage(data: 'TODO ID: ' . $request->input("todo_id") . ' is not in record   ');
             }
         } catch (Throwable $e) {
             report($e);
+            Log::error($e);
             return errorMsg(message: $e->getTrace());
         }
     }
