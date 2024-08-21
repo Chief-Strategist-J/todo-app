@@ -122,4 +122,254 @@ class Pomodoro extends Model
         }
     }
 
+    public function startPomodoro(int $pomodoroId): void
+    {
+        try {
+            DB::beginTransaction();
+
+            $existingTimer = DB::table('pomodoro_timers')
+                ->where('pomodoro_id', $pomodoroId)
+                ->whereNull('completed_at')
+                ->first();
+
+            if ($existingTimer) {
+                if ($existingTimer->status === 'paused' || $existingTimer->status === 'interrupted') {
+                    DB::table('pomodoro_timers')
+                        ->where('id', $existingTimer->id)
+                        ->update([
+                            'resumed_at' => now(),
+                            'status' => 'started',
+                            'segment_duration_seconds' => $existingTimer->segment_duration_seconds,
+                            'pause_duration_seconds' => $existingTimer->pause_duration_seconds,
+                            'active_duration_seconds' => $existingTimer->active_duration_seconds,
+                            'is_interrupted' => false,
+                        ]);
+                } else {
+                    DB::rollBack();
+                    return;
+                }
+            } else {
+                DB::table('pomodoro_timers')->insert([
+                    'pomodoro_id' => $pomodoroId,
+                    'started_at' => now(),
+                    'status' => 'started',
+                    'segment_duration_seconds' => 0,
+                    'pause_duration_seconds' => 0,
+                    'active_duration_seconds' => 0,
+                    'is_interrupted' => false,
+                    'number_of_pauses' => 0,
+                    'device_used' => null,
+                    'user_feedback' => null,
+                    'performance_score' => null,
+                ]);
+            }
+
+            DB::table('pomodoros')->where('id', $pomodoroId)->update([
+                'status' => 'in_progress',
+                'start_time' => now(),
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error starting pomodoro: ' . $e->getMessage());
+        }
+    }
+
+
+    public function stopPomodoro(int $pomodoroId): void
+    {
+        $now = now();
+
+        try {
+            DB::transaction(function () use ($pomodoroId, $now) {
+
+                $timer = DB::table('pomodoro_timers')
+                    ->select('id', 'started_at', 'pause_duration_seconds', 'active_duration_seconds')
+                    ->where('pomodoro_id', $pomodoroId)
+                    ->whereNull('completed_at')
+                    ->whereNull('resumed_at')
+                    ->whereNull('stopped_at')
+                    ->first();
+
+
+                if (!$timer) {
+                    return;
+                }
+
+
+                $segmentDuration = $timer->started_at ? $now->diffInSeconds($timer->started_at) : 0;
+                $updatedPauseDuration = $timer->pause_duration_seconds + $segmentDuration;
+                $updatedActiveDuration = $timer->active_duration_seconds + $segmentDuration;
+
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $timer->id)
+                    ->update([
+                        'stopped_at' => $now,
+                        'status' => 'stopped',
+                        'segment_duration_seconds' => $segmentDuration,
+                        'pause_duration_seconds' => $updatedPauseDuration,
+                        'active_duration_seconds' => $updatedActiveDuration,
+                    ]);
+
+
+                DB::table('pomodoros')
+                    ->where('id', $pomodoroId)
+                    ->update([
+                        'status' => 'paused',
+                        'end_time' => $now,
+                    ]);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error stopping pomodoro: ' . $e->getMessage());
+        }
+    }
+
+
+    public function resumePomodoro(int $pomodoroId): void
+    {
+        $now = now();
+
+        try {
+            DB::transaction(function () use ($pomodoroId, $now) {
+
+                $timer = DB::table('pomodoro_timers')
+                    ->select('id', 'started_at', 'stopped_at', 'segment_duration_seconds', 'pause_duration_seconds', 'active_duration_seconds')
+                    ->where('pomodoro_id', $pomodoroId)
+                    ->whereNull('completed_at')
+                    ->whereNotNull('stopped_at')
+                    ->whereNull('resumed_at')
+                    ->first();
+
+                if (!$timer) {
+                    return;
+                }
+
+
+                $pauseDuration = $now->diffInSeconds($timer->stopped_at);
+
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $timer->id)
+                    ->update([
+                        'resumed_at' => $now,
+                        'status' => 'started',
+                        'pause_duration_seconds' => $timer->pause_duration_seconds + $pauseDuration,
+                        'segment_duration_seconds' => $timer->segment_duration_seconds,
+                        'active_duration_seconds' => $timer->active_duration_seconds,
+                    ]);
+
+
+                DB::table('pomodoros')
+                    ->where('id', $pomodoroId)
+                    ->update([
+                        'status' => 'in progress',
+                        'start_time' => $now,
+                    ]);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error resuming pomodoro: ' . $e->getMessage());
+        }
+    }
+
+
+
+
+    public function endPomodoro(int $pomodoroId): void
+    {
+        $now = now();
+
+        try {
+            DB::transaction(function () use ($pomodoroId, $now) {
+                $timer = DB::table('pomodoro_timers')
+                    ->select('id', 'started_at', 'stopped_at', 'resumed_at', 'segment_duration_seconds', 'pause_duration_seconds', 'active_duration_seconds')
+                    ->where('pomodoro_id', $pomodoroId)
+                    ->whereNull('completed_at')
+                    ->first();
+
+                if (!$timer) {
+                    return;
+                }
+
+                $startTime = $timer->started_at;
+                $endTime = $now;
+
+                $activeDuration = $endTime->diffInSeconds($startTime);
+
+                $totalDuration = $activeDuration + $timer->pause_duration_seconds;
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $timer->id)
+                    ->update([
+                        'completed_at' => $now,
+                        'status' => 'completed',
+                        'segment_duration_seconds' => $totalDuration,
+                        'duration_in_seconds' => $totalDuration,
+                    ]);
+
+
+                DB::table('pomodoros')
+                    ->where('id', $pomodoroId)
+                    ->update([
+                        'status' => 'completed',
+                        'end_time' => $now,
+                    ]);
+            });
+        } catch (\Exception $e) {
+            Log::error('Error ending pomodoro: ' . $e->getMessage());
+        }
+    }
+
+
+    public function getPomodoroStats(int $userId): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $pomodoros = DB::table('pomodoros')
+                ->join('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
+                ->where('pomodoros.user_id', $userId)
+                ->whereNull('pomodoros.deleted_at')
+                ->where('pomodoros.status', '!=', 'completed')
+                ->select(
+                    'pomodoros.id',
+                    'pomodoros.duration',
+                    'pomodoro_timers.started_at',
+                    'pomodoro_timers.stopped_at',
+                    'pomodoro_timers.resumed_at',
+                    'pomodoro_timers.pause_duration_seconds',
+                    'pomodoro_timers.segment_duration_seconds'
+                )
+                ->get();
+
+            $pomodoroCount = $pomodoros->count();
+            $totalRemainingDuration = $pomodoros->sum(function ($pomodoro) {
+                $now = now();
+
+                if ($pomodoro->stopped_at) {
+                    return max(0, $pomodoro->duration - $pomodoro->segment_duration_seconds);
+                }
+
+                if ($pomodoro->started_at) {
+                    $elapsed = $now->diffInSeconds($pomodoro->started_at);
+                    $activeDuration = $elapsed - $pomodoro->pause_duration_seconds;
+                    $remainingDuration = $pomodoro->duration - $activeDuration;
+                    return max(0, $remainingDuration);
+                }
+
+
+                return $pomodoro->duration;
+            });
+
+            return response()->json([
+                'pomodoro_count' => $pomodoroCount,
+                'total_remaining_duration' => $totalRemainingDuration,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error retrieving pomodoro stats: ' . $e->getMessage());
+            return response()->json(['error' => 'An error occurred while retrieving pomodoro stats.'], 500);
+        }
+    }
+
+
+
 }
