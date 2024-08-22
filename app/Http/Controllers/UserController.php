@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Throwable;
 
@@ -73,11 +74,11 @@ class UserController extends Controller
 
             Auth::login($user);
             return $this->generateLoginResponse($user, isSignUp: $isSignUp);
-        }catch (QueryException $e) { // Catch specific DB exception
+        } catch (QueryException $e) { // Catch specific DB exception
             report($e);
             Log::error("Database error while login: " . $e->getMessage());
             return response()->json(['message' => 'Internal Server Error. Please try again later.'], 500);
-        }  catch (Throwable $e) {
+        } catch (Throwable $e) {
             report($e);
             Log::error("Error While login");
             return response()->json(['message' => 'Internal Server Error. Please try again later.'], 500);
@@ -204,8 +205,7 @@ class UserController extends Controller
                 'firebase_user_details_id '
             ];
 
-            $cacheKey = '_user_detail_' . $userId;
-            Cache::forget($cacheKey);
+
             $userDetail = UserDetail::updateOrCreate(
                 ['user_id' => $request->input('user_id')],
                 collect($request->only($fields))->filter()->all()
@@ -231,16 +231,15 @@ class UserController extends Controller
                 return $this->bearerNotMatched($request);
             }
 
-            $cacheKey = '_user_detail_' . $userId;
-            $info = Cache::remember($cacheKey, now()->addWeek(), function () use ($userId) {
-                return UserDetail::find($userId);
-            });
+            $info = User::find($userId);
 
             if (is_null($info)) {
                 return $this->userNotFound();
             }
 
-            return successMessage(data: ['user_info' => $info]);
+
+            return $this->generateLoginResponse($user, isSignUp: false);
+
         } catch (Throwable $e) {
             report($e);
             Log::info("Error While Getting User Details");
@@ -391,9 +390,49 @@ class UserController extends Controller
         );
     }
 
-    public function signOut()
+    public function signOut(Request $request): JsonResponse
     {
-        Session::flush();
-        Auth::logout();
+        $rateLimitKey = 'signout:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+            return response()->json(['error' => __('Too many requests. Please try again later.')], 429);
+        }
+
+        try {
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json(['error' => __('No user is currently authenticated.')], 401);
+            }
+
+            $userId = $request->input('user_id');
+            if ($userId && $user->id != $userId) {
+                return response()->json(['error' => __('Unauthorized action.')], 403);
+            }
+
+            // Send logout notification if needed
+            $this->sendWelcomeNotification(
+                title: "LogOut",
+                message: 'Thank you for your valuable time',
+                emails: $request->input('email')
+            );
+
+            // Revoke the current token
+            $user->currentAccessToken()->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('Successfully signed out.')
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Sign out failed: ' . $e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => __('An error occurred during sign out.')
+            ], 500);
+        } finally {
+            RateLimiter::hit($rateLimitKey);
+        }
     }
+
 }

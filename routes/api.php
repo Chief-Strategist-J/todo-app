@@ -20,10 +20,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('verifyOtp', [UserController::class, 'verifyOtp'])->name('verifyOtp');
     Route::post('updateUserDetails', [UserController::class, 'updateUserDetails'])->name('updateUserDetails');
     Route::post('getUserDetail', [UserController::class, 'getUserDetail'])->name('getUserDetail');
+    Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');
     Route::post('updatePassword', [UserController::class, 'updatePassword'])->name('updatePassword');
 
     Route::prefix('v1/tags')->name('tags.')->group(function () {
-        
+
         Route::get('/getAllSeeded', [TagController::class, 'getAllSeededTags'])->name('getAllSeeded');
         Route::post('/getAllTagsByUserId', [TagController::class, 'getAllTagsByUserId'])->name('getAllTagsByUserId');
         Route::post('/', [TagController::class, 'getAllTags'])->name('getAll');
@@ -31,14 +32,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/', [TagController::class, 'updateTag'])->name('update');
         Route::post('/getTagDetail', [TagController::class, 'getTagByTagId'])->name('update');
         Route::delete('/', [TagController::class, 'deleteTag'])->name('delete');
-        
+
         Route::post('/bulk', [TagController::class, 'bulkCreateTags'])->name('bulkCreate');
         Route::post('/bulkDelete', [TagController::class, 'bulkDeleteTags'])->name('bulkDelete');
-        
+
         Route::post('/{tag}/archive', [TagController::class, 'archiveTag'])->name('archive');
         Route::post('/{tag}/restore', [TagController::class, 'restoreTag'])->name('restore');
         Route::post('/bulkDeleteTagsByTodoId', [TagController::class, 'bulkDeleteTagsByTodoId'])->name('bulkDeleteTagsByTodoId');
-        
+
         Route::post('/search', [TagController::class, 'searchTags'])->name('search');
     });
 
@@ -49,12 +50,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
         Route::post('/{todo}', [TodoController::class, 'update'])->name('update');
         Route::post('/getlistOfTodosPagignated', [TodoController::class, 'getlistOfTodosPagignated'])->name('getlistOfTodosPagignated');
-        Route::post('/{todo}', [TodoController::class, 'show'])->name('show');  
-        Route::post('/{todo}/edit', [TodoController::class, 'edit'])->name('edit'); 
-        Route::post('/{todo}/create', [TodoController::class, 'create'])->name('create'); 
+        Route::post('/{todo}', [TodoController::class, 'show'])->name('show');
+        Route::post('/{todo}/edit', [TodoController::class, 'edit'])->name('edit');
+        Route::post('/{todo}/create', [TodoController::class, 'create'])->name('create');
     });
-    
+
 });
 
-
-Route::post('signOut', [UserController::class, 'signOut'])->name('signOut');
