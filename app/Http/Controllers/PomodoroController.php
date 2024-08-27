@@ -34,51 +34,47 @@ class PomodoroController extends Controller
         }
     }
 
-    public function startPomodoro(StartPomodoroRequest $request): JsonResponse
+    public function startPomodoro(StartPomodoroRequest $request): void
     {
         try {
             $pomodoroId = (int) $request->input('pomodoro_id');
             $this->pomodoro->startPomodoro($pomodoroId);
-            return successMessage('Pomodoro started successfully');
+            Log::error('Started the pomodoro');
         } catch (Exception $e) {
             Log::error('Failed to start pomodoro: ' . $e->getMessage());
-            return errorMsg('Failed to start pomodoro', false);
         }
     }
 
-    public function stopPomodoro(StartPomodoroRequest $request): JsonResponse
+    public function stopPomodoro(StartPomodoroRequest $request): void
     {
         try {
             $pomodoroId = (int) $request->input('pomodoro_id');
             $this->pomodoro->stopPomodoro($pomodoroId);
-            return successMessage('Pomodoro stopped successfully');
+            Log::error('Stoped the pomodoro');
         } catch (Exception $e) {
             Log::error('Failed to stop pomodoro: ' . $e->getMessage());
-            return errorMsg('Failed to stop pomodoro', false);
         }
     }
 
-    public function resumePomodoro(StartPomodoroRequest $request): JsonResponse
+    public function resumePomodoro(StartPomodoroRequest $request): void
     {
         try {
             $pomodoroId = (int) $request->input('pomodoro_id');
             $this->pomodoro->resumePomodoro($pomodoroId);
-            return successMessage('Pomodoro resumed successfully');
+            Log::error('Resumed the pomodoro');
         } catch (Exception $e) {
             Log::error('Failed to resume pomodoro: ' . $e->getMessage());
-            return errorMsg('Failed to resume pomodoro', false);
         }
     }
 
-    public function endPomodoro(StartPomodoroRequest $request): JsonResponse
+    public function endPomodoro(StartPomodoroRequest $request): void
     {
         try {
             $pomodoroId = (int) $request->input('pomodoro_id');
             $this->pomodoro->endPomodoro($pomodoroId);
-            return successMessage('Pomodoro ended successfully');
+            Log::error('Ended the pomodoro');
         } catch (Exception $e) {
             Log::error('Failed to end pomodoro: ' . $e->getMessage());
-            return errorMsg('Failed to end pomodoro', false);
         }
     }
 

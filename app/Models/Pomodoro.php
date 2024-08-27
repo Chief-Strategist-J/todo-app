@@ -175,12 +175,12 @@ class Pomodoro extends Model
         }
     }
 
-    public function startPomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
+    public function startPomodoro(int $pomodoroId): void
     {
         try {
             $now = now();
 
-            $result = DB::transaction(function () use ($pomodoroId, $now) {
+            DB::transaction(function () use ($pomodoroId, $now) {
                 $pomodoroData = DB::table('pomodoros')
                     ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
                     ->where('pomodoros.id', $pomodoroId)
@@ -219,40 +219,20 @@ class Pomodoro extends Model
                     ]);
 
                 $this->scheduleTimerCompletion($pomodoroData->timer_id, $pomodoroData->duration);
-
                 Log::info("Started pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
-                return [
-                    'pomodoro' => [
-                        'id' => $pomodoroData->id,
-                        'status' => $pomodoroData->status,
-                        'duration' => $pomodoroData->duration,
-                    ],
-                    'timer' => [
-                        'id' => $pomodoroData->timer_id,
-                        'status' => $pomodoroData->timer_status,
-                    ]
-                ];
             });
 
-            return $result
-                ? response()->json($result, 200)
-                : response()->json(['message' => 'No available timers'], 400);
+           
         } catch (\Exception $e) {
             Log::error('Error starting pomodoro: ' . $e->getMessage());
-            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
-
-    
-
-
-    public function stopPomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
+    public function stopPomodoro(int $pomodoroId): void
     {
         try {
             $now = now();
-
-            $result = DB::transaction(function () use ($pomodoroId, $now) {
+            DB::transaction(function () use ($pomodoroId, $now) {
                 $pomodoroData = DB::table('pomodoros')
                     ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
                     ->where('pomodoros.id', $pomodoroId)
@@ -289,33 +269,18 @@ class Pomodoro extends Model
                     ]);
 
                 Log::info("Stopped pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
-                return [
-                    'pomodoro' => [
-                        'id' => $pomodoroData->id,
-                        'status' => $pomodoroData->status,
-                    ],
-                    'timer' => [
-                        'id' => $pomodoroData->timer_id,
-                        'status' => $pomodoroData->timer_status,
-                    ]
-                ];
             });
 
-            return $result
-                ? response()->json($result, 200)
-                : response()->json(['message' => 'Pomodoro not found or not in a stoppable state'], 400);
         } catch (\Exception $e) {
             Log::error('Error stopping pomodoro: ' . $e->getMessage());
-            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
-    public function resumePomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
+    public function resumePomodoro(int $pomodoroId): void
     {
         try {
             $now = now();
-
-            $result = DB::transaction(function () use ($pomodoroId, $now) {
+            DB::transaction(function () use ($pomodoroId, $now) {
                 $pomodoroData = DB::table('pomodoros')
                     ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
                     ->where('pomodoros.id', $pomodoroId)
@@ -354,30 +319,14 @@ class Pomodoro extends Model
                 $this->scheduleTimerCompletion($pomodoroData->timer_id, $pomodoroData->duration);
 
                 Log::info("Resumed pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
-                return [
-                    'pomodoro' => [
-                        'id' => $pomodoroData->id,
-                        'status' => $pomodoroData->status,
-                        'duration' => $pomodoroData->duration,
-                    ],
-                    'timer' => [
-                        'id' => $pomodoroData->timer_id,
-                        'status' => $pomodoroData->timer_status,
-                    ]
-                ];
             });
-
-            return $result
-                ? response()->json($result, 200)
-                : response()->json(['message' => 'Pomodoro not found or not paused'], 400);
         } catch (\Exception $e) {
             Log::error('Error resuming pomodoro: ' . $e->getMessage());
-            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
 
-    public function endPomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
+    public function endPomodoro(int $pomodoroId): void
     {
         try {
             $now = now();
@@ -420,24 +369,9 @@ class Pomodoro extends Model
                     ]);
 
                 Log::info("Ended pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
-                return [
-                    'pomodoro' => [
-                        'id' => $pomodoroData->id,
-                        'status' => $pomodoroData->status,
-                    ],
-                    'timer' => [
-                        'id' => $pomodoroData->timer_id,
-                        'status' => $pomodoroData->timer_status,
-                    ]
-                ];
             });
-
-            return $result
-                ? response()->json($result, 200)
-                : response()->json(['message' => 'Pomodoro not found or already completed'], 400);
         } catch (\Exception $e) {
             Log::error('Error ending pomodoro: ' . $e->getMessage());
-            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
