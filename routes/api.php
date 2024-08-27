@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PomodoroController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
@@ -53,6 +54,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{todo}', [TodoController::class, 'show'])->name('show');
         Route::post('/{todo}/edit', [TodoController::class, 'edit'])->name('edit');
         Route::post('/{todo}/create', [TodoController::class, 'create'])->name('create');
+    });
+
+    
+    Route::prefix('pomodoro')->name('pomodoro.')->group(function () {
+        
+        Route::post('/createBulkPomodoros', [PomodoroController::class, 'createBulkPomodoros'])->name('createBulkPomodoros');
+        Route::post('/startPomodoro', [PomodoroController::class, 'startPomodoro'])->name('startPomodoro');
+        Route::post('/stopPomodoro', [PomodoroController::class, 'stopPomodoro'])->name('stopPomodoro');
+        Route::post('/resumePomodoro', [PomodoroController::class, 'resumePomodoro'])->name('resumePomodoro');
+        Route::post('/endPomodoro', [PomodoroController::class, 'endPomodoro'])->name('endPomodoro');
+        Route::post('/getPomodoroStats', [PomodoroController::class, 'getPomodoroStats'])->name('getPomodoroStats');
+        
     });
 
 });

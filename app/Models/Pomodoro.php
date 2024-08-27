@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Http\Requests\CreateBulkPomodorosRequest;
+use App\Jobs\ProcessExpiredTimers;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -73,7 +76,7 @@ class Pomodoro extends Model
     }
 
 
-    public function create_bulk_pomodoros(Request $request): \Illuminate\Http\JsonResponse
+    public function create_bulk_pomodoros(CreateBulkPomodorosRequest $request): \Illuminate\Http\JsonResponse
     {
         $title = $request->input('title');
         $duration = $request->input('duration');
@@ -122,254 +125,378 @@ class Pomodoro extends Model
         }
     }
 
-    public function startPomodoro(int $pomodoroId): void
+    public function createBulkPomodoros(CreateBulkPomodorosRequest $request): \Illuminate\Http\JsonResponse
     {
+        $title = $request->input('title');
+        $duration = $request->input('duration');
+        $status = $request->input('status', 'pending');
+        $todoId = $request->input('todo_id');
+        $userId = $request->input('user_id');
+        $numberOfPomodoros = $request->input('number_of_pomodoros', 1);
+
+        DB::beginTransaction();
+
         try {
-            DB::beginTransaction();
+            $uuid = (string) Str::uuid();
+            $pomodoro = [
+                'uuid' => $uuid,
+                'title' => $title,
+                'duration' => $duration,
+                'status' => $status,
+                'todo_id' => $todoId,
+                'user_id' => $userId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
 
-            $existingTimer = DB::table('pomodoro_timers')
-                ->where('pomodoro_id', $pomodoroId)
-                ->whereNull('completed_at')
-                ->first();
+            $pomodoroId = DB::table('pomodoros')->insertGetId($pomodoro);
 
-            if ($existingTimer) {
-                if ($existingTimer->status === 'paused' || $existingTimer->status === 'interrupted') {
-                    DB::table('pomodoro_timers')
-                        ->where('id', $existingTimer->id)
-                        ->update([
-                            'resumed_at' => now(),
-                            'status' => 'started',
-                            'segment_duration_seconds' => $existingTimer->segment_duration_seconds,
-                            'pause_duration_seconds' => $existingTimer->pause_duration_seconds,
-                            'active_duration_seconds' => $existingTimer->active_duration_seconds,
-                            'is_interrupted' => false,
-                        ]);
-                } else {
-                    DB::rollBack();
-                    return;
-                }
-            } else {
-                DB::table('pomodoro_timers')->insert([
-                    'pomodoro_id' => $pomodoroId,
-                    'started_at' => now(),
-                    'status' => 'started',
-                    'segment_duration_seconds' => 0,
-                    'pause_duration_seconds' => 0,
-                    'active_duration_seconds' => 0,
-                    'is_interrupted' => false,
-                    'number_of_pauses' => 0,
-                    'device_used' => null,
-                    'user_feedback' => null,
-                    'performance_score' => null,
-                ]);
-            }
-
-            DB::table('pomodoros')->where('id', $pomodoroId)->update([
-                'status' => 'in_progress',
-                'start_time' => now(),
+            $timers = array_fill(0, $numberOfPomodoros, [
+                'pomodoro_id' => $pomodoroId,
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
+            DB::table('pomodoro_timers')->insert($timers);
+
+            $result = [
+                'pomodoro' => DB::table('pomodoros')->select('uuid', 'user_id', 'todo_id', 'id')->find($pomodoroId),
+                'timers' => DB::table('pomodoro_timers')->select('id', 'pomodoro_id')->where('pomodoro_id', $pomodoroId)->get()
+            ];
+
             DB::commit();
+            Log::info("Created pomodoro with ID: {$pomodoroId} and {$numberOfPomodoros} timers");
+            return response()->json($result, 201);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error creating bulk pomodoros: ' . $e->getMessage());
+            return response()->json(['error' => 'An error occurred.'], 500);
+        }
+    }
+
+    public function startPomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $now = now();
+
+            $result = DB::transaction(function () use ($pomodoroId, $now) {
+                $pomodoroData = DB::table('pomodoros')
+                    ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
+                    ->where('pomodoros.id', $pomodoroId)
+                    ->whereNull('pomodoros.deleted_at')
+                    ->whereNull('pomodoro_timers.completed_at')
+                    ->where('pomodoro_timers.status', 'pending')
+                    ->select(
+                        'pomodoros.*',
+                        'pomodoro_timers.id as timer_id',
+                        'pomodoro_timers.status as timer_status'
+                    )
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$pomodoroData) {
+                    Log::info("Pomodoro {$pomodoroId} not found or no available timers.");
+                    return null;
+                }
+
+                // Update the Pomodoro status
+                DB::table('pomodoros')
+                    ->where('id', $pomodoroId)
+                    ->update([
+                        'status' => 'in_progress',
+                        'start_time' => $now,
+                        'updated_at' => $now,
+                    ]);
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $pomodoroData->timer_id)
+                    ->whereNull('completed_at')
+                    ->update([
+                        'status' => 'in_progress', // Changed status to 'in_progress'
+                        'updated_at' => $now,
+                        'started_at' => $now,
+                    ]);
+
+                $this->scheduleTimerCompletion($pomodoroData->timer_id, $pomodoroData->duration);
+
+                Log::info("Started pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
+                return [
+                    'pomodoro' => [
+                        'id' => $pomodoroData->id,
+                        'status' => $pomodoroData->status,
+                        'duration' => $pomodoroData->duration,
+                    ],
+                    'timer' => [
+                        'id' => $pomodoroData->timer_id,
+                        'status' => $pomodoroData->timer_status,
+                    ]
+                ];
+            });
+
+            return $result
+                ? response()->json($result, 200)
+                : response()->json(['message' => 'No available timers'], 400);
+        } catch (\Exception $e) {
             Log::error('Error starting pomodoro: ' . $e->getMessage());
+            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
 
-    public function stopPomodoro(int $pomodoroId): void
+    
+
+
+    public function stopPomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
     {
-        $now = now();
-
         try {
-            DB::transaction(function () use ($pomodoroId, $now) {
+            $now = now();
 
-                $timer = DB::table('pomodoro_timers')
-                    ->select('id', 'started_at', 'pause_duration_seconds', 'active_duration_seconds')
-                    ->where('pomodoro_id', $pomodoroId)
-                    ->whereNull('completed_at')
-                    ->whereNull('resumed_at')
-                    ->whereNull('stopped_at')
+            $result = DB::transaction(function () use ($pomodoroId, $now) {
+                $pomodoroData = DB::table('pomodoros')
+                    ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
+                    ->where('pomodoros.id', $pomodoroId)
+                    ->whereNull('pomodoros.deleted_at')
+                    ->whereNull('pomodoro_timers.completed_at')
+                    ->whereIn('pomodoro_timers.status',  ['pending', 'in_progress', 'paused'])
+                    ->select(
+                        'pomodoros.*',
+                        'pomodoro_timers.id as timer_id',
+                        'pomodoro_timers.status as timer_status'
+                    )
+                    ->lockForUpdate()
                     ->first();
 
-
-                if (!$timer) {
-                    return;
+                if (!$pomodoroData) {
+                    Log::info("Pomodoro {$pomodoroId} not found or not in a stoppable state.");
+                    return null;
                 }
 
-
-                $segmentDuration = $timer->started_at ? $now->diffInSeconds($timer->started_at) : 0;
-                $updatedPauseDuration = $timer->pause_duration_seconds + $segmentDuration;
-                $updatedActiveDuration = $timer->active_duration_seconds + $segmentDuration;
-
-
-                DB::table('pomodoro_timers')
-                    ->where('id', $timer->id)
-                    ->update([
-                        'stopped_at' => $now,
-                        'status' => 'stopped',
-                        'segment_duration_seconds' => $segmentDuration,
-                        'pause_duration_seconds' => $updatedPauseDuration,
-                        'active_duration_seconds' => $updatedActiveDuration,
-                    ]);
-
-
+                // Update the Pomodoro status
                 DB::table('pomodoros')
                     ->where('id', $pomodoroId)
                     ->update([
-                        'status' => 'paused',
-                        'end_time' => $now,
+                        'status' => 'stopped',
+                        'updated_at' => $now,
                     ]);
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $pomodoroData->timer_id)
+                    ->update([
+                        'status' => 'stopped',
+                        'updated_at' => $now,
+                        'stopped_at' => $now,
+                    ]);
+
+                Log::info("Stopped pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
+                return [
+                    'pomodoro' => [
+                        'id' => $pomodoroData->id,
+                        'status' => $pomodoroData->status,
+                    ],
+                    'timer' => [
+                        'id' => $pomodoroData->timer_id,
+                        'status' => $pomodoroData->timer_status,
+                    ]
+                ];
             });
+
+            return $result
+                ? response()->json($result, 200)
+                : response()->json(['message' => 'Pomodoro not found or not in a stoppable state'], 400);
         } catch (\Exception $e) {
             Log::error('Error stopping pomodoro: ' . $e->getMessage());
+            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
-
-    public function resumePomodoro(int $pomodoroId): void
+    public function resumePomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
     {
-        $now = now();
-
         try {
-            DB::transaction(function () use ($pomodoroId, $now) {
+            $now = now();
 
-                $timer = DB::table('pomodoro_timers')
-                    ->select('id', 'started_at', 'stopped_at', 'segment_duration_seconds', 'pause_duration_seconds', 'active_duration_seconds')
-                    ->where('pomodoro_id', $pomodoroId)
-                    ->whereNull('completed_at')
-                    ->whereNotNull('stopped_at')
-                    ->whereNull('resumed_at')
+            $result = DB::transaction(function () use ($pomodoroId, $now) {
+                $pomodoroData = DB::table('pomodoros')
+                    ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
+                    ->where('pomodoros.id', $pomodoroId)
+                    ->whereNull('pomodoros.deleted_at')
+                    ->whereNull('pomodoro_timers.completed_at')
+                    ->where('pomodoro_timers.status', 'stopped')
+                    ->select(
+                        'pomodoros.*',
+                        'pomodoro_timers.id as timer_id',
+                        'pomodoro_timers.status as timer_status'
+                    )
+                    ->lockForUpdate()
                     ->first();
 
-                if (!$timer) {
-                    return;
+                if (!$pomodoroData) {
+                    Log::info("Pomodoro {$pomodoroId} not found or not paused.");
+                    return null;
                 }
 
-
-                $pauseDuration = $now->diffInSeconds($timer->stopped_at);
-
-
-                DB::table('pomodoro_timers')
-                    ->where('id', $timer->id)
-                    ->update([
-                        'resumed_at' => $now,
-                        'status' => 'started',
-                        'pause_duration_seconds' => $timer->pause_duration_seconds + $pauseDuration,
-                        'segment_duration_seconds' => $timer->segment_duration_seconds,
-                        'active_duration_seconds' => $timer->active_duration_seconds,
-                    ]);
-
-
+                // Update the Pomodoro status
                 DB::table('pomodoros')
                     ->where('id', $pomodoroId)
                     ->update([
-                        'status' => 'in progress',
-                        'start_time' => $now,
+                        'status' => 'in_progress',
+                        'updated_at' => $now,
                     ]);
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $pomodoroData->timer_id)
+                    ->update([
+                        'status' => 'in_progress', // Changed status to 'pending' or any other appropriate status
+                        'updated_at' => $now,
+                        'resumed_at' => $now,
+                    ]);
+
+                $this->scheduleTimerCompletion($pomodoroData->timer_id, $pomodoroData->duration);
+
+                Log::info("Resumed pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
+                return [
+                    'pomodoro' => [
+                        'id' => $pomodoroData->id,
+                        'status' => $pomodoroData->status,
+                        'duration' => $pomodoroData->duration,
+                    ],
+                    'timer' => [
+                        'id' => $pomodoroData->timer_id,
+                        'status' => $pomodoroData->timer_status,
+                    ]
+                ];
             });
+
+            return $result
+                ? response()->json($result, 200)
+                : response()->json(['message' => 'Pomodoro not found or not paused'], 400);
         } catch (\Exception $e) {
             Log::error('Error resuming pomodoro: ' . $e->getMessage());
+            return response()->json(['error' => 'An error occurred.'], 500);
         }
     }
 
 
-
-
-    public function endPomodoro(int $pomodoroId): void
+    public function endPomodoro(int $pomodoroId): \Illuminate\Http\JsonResponse
     {
-        $now = now();
-
         try {
-            DB::transaction(function () use ($pomodoroId, $now) {
-                $timer = DB::table('pomodoro_timers')
-                    ->select('id', 'started_at', 'stopped_at', 'resumed_at', 'segment_duration_seconds', 'pause_duration_seconds', 'active_duration_seconds')
-                    ->where('pomodoro_id', $pomodoroId)
-                    ->whereNull('completed_at')
+            $now = now();
+
+            $result = DB::transaction(function () use ($pomodoroId, $now) {
+                $pomodoroData = DB::table('pomodoros')
+                    ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
+                    ->where('pomodoros.id', $pomodoroId)
+                    ->whereNull('pomodoros.deleted_at')
+                    ->whereNull('pomodoro_timers.completed_at')
+                    ->whereIn('pomodoro_timers.status', ['pending', 'in_progress', 'paused']) // Handle various statuses
+                    ->select(
+                        'pomodoros.*',
+                        'pomodoro_timers.id as timer_id',
+                        'pomodoro_timers.status as timer_status'
+                    )
+                    ->lockForUpdate()
                     ->first();
 
-                if (!$timer) {
-                    return;
+                if (!$pomodoroData) {
+                    Log::info("Pomodoro {$pomodoroId} not found or already completed.");
+                    return null;
                 }
 
-                $startTime = $timer->started_at;
-                $endTime = $now;
-
-                $activeDuration = $endTime->diffInSeconds($startTime);
-
-                $totalDuration = $activeDuration + $timer->pause_duration_seconds;
-
-                DB::table('pomodoro_timers')
-                    ->where('id', $timer->id)
-                    ->update([
-                        'completed_at' => $now,
-                        'status' => 'completed',
-                        'segment_duration_seconds' => $totalDuration,
-                        'duration_in_seconds' => $totalDuration,
-                    ]);
-
-
+                // Update the Pomodoro status
                 DB::table('pomodoros')
                     ->where('id', $pomodoroId)
                     ->update([
                         'status' => 'completed',
                         'end_time' => $now,
+                        'updated_at' => $now,
                     ]);
+
+                DB::table('pomodoro_timers')
+                    ->where('id', $pomodoroData->timer_id)
+                    ->update([
+                        'status' => 'completed',
+                        'completed_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+
+                Log::info("Ended pomodoro {$pomodoroId} with timer {$pomodoroData->timer_id}");
+                return [
+                    'pomodoro' => [
+                        'id' => $pomodoroData->id,
+                        'status' => $pomodoroData->status,
+                    ],
+                    'timer' => [
+                        'id' => $pomodoroData->timer_id,
+                        'status' => $pomodoroData->timer_status,
+                    ]
+                ];
             });
+
+            return $result
+                ? response()->json($result, 200)
+                : response()->json(['message' => 'Pomodoro not found or already completed'], 400);
         } catch (\Exception $e) {
             Log::error('Error ending pomodoro: ' . $e->getMessage());
+            return response()->json(['error' => 'An error occurred.'], 500);
         }
+    }
+
+
+    private function scheduleTimerCompletion(int $timerId, int $durationInMinutes): void
+    {
+        $delayInSeconds = $durationInMinutes * 60;
+        ProcessExpiredTimers::dispatch($timerId)->delay($delayInSeconds);
+        Log::info("Scheduled timer completion for timer {$timerId} after {$delayInSeconds} seconds");
     }
 
 
     public function getPomodoroStats(int $userId): \Illuminate\Http\JsonResponse
     {
         try {
-            $pomodoros = DB::table('pomodoros')
-                ->join('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
+            $pomodoroStats = DB::table('pomodoros')
+                ->leftJoin('pomodoro_timers', 'pomodoros.id', '=', 'pomodoro_timers.pomodoro_id')
                 ->where('pomodoros.user_id', $userId)
                 ->whereNull('pomodoros.deleted_at')
-                ->where('pomodoros.status', '!=', 'completed')
+                ->whereNull('pomodoro_timers.completed_at')
                 ->select(
-                    'pomodoros.id',
-                    'pomodoros.duration',
-                    'pomodoro_timers.started_at',
-                    'pomodoro_timers.stopped_at',
-                    'pomodoro_timers.resumed_at',
-                    'pomodoro_timers.pause_duration_seconds',
-                    'pomodoro_timers.segment_duration_seconds'
+                    'pomodoros.id as pomodoro_id',
+                    'pomodoros.status as pomodoro_status',
+                    'pomodoros.duration as pomodoro_duration',
+                    DB::raw('JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        "timer_id", pomodoro_timers.id,
+                        "timer_status", pomodoro_timers.status,
+                        "started_at", CASE WHEN pomodoro_timers.started_at IS NOT NULL THEN pomodoro_timers.started_at ELSE NULL END,
+                        "stopped_at", CASE WHEN pomodoro_timers.stopped_at IS NOT NULL THEN pomodoro_timers.stopped_at ELSE NULL END,
+                        "resumed_at", CASE WHEN pomodoro_timers.resumed_at IS NOT NULL THEN pomodoro_timers.resumed_at ELSE NULL END
+                    )
+                ) as timers')
                 )
+                ->groupBy('pomodoros.id')
                 ->get();
 
-            $pomodoroCount = $pomodoros->count();
-            $totalRemainingDuration = $pomodoros->sum(function ($pomodoro) {
-                $now = now();
+            // Decode JSON and filter out null fields
+            $result = $pomodoroStats->map(function ($pomodoro) {
+                $timers = json_decode($pomodoro->timers, true);
 
-                if ($pomodoro->stopped_at) {
-                    return max(0, $pomodoro->duration - $pomodoro->segment_duration_seconds);
-                }
+                $pomodoro->timers = collect($timers)->map(function ($timer) {
+                    return array_filter($timer, function ($value) {
+                        return $value !== null;
+                    });
+                })->values();
 
-                if ($pomodoro->started_at) {
-                    $elapsed = $now->diffInSeconds($pomodoro->started_at);
-                    $activeDuration = $elapsed - $pomodoro->pause_duration_seconds;
-                    $remainingDuration = $pomodoro->duration - $activeDuration;
-                    return max(0, $remainingDuration);
-                }
-
-
-                return $pomodoro->duration;
+                return $pomodoro;
             });
 
+            Log::info("Retrieved pomodoro stats for user {$userId}");
             return response()->json([
-                'pomodoro_count' => $pomodoroCount,
-                'total_remaining_duration' => $totalRemainingDuration,
+                'total_pomodoros' => $result->count(),
+                'pomodoros' => $result->values(),
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Error retrieving pomodoro stats: ' . $e->getMessage());
+            Log::error("Error retrieving pomodoro stats for user {$userId}: " . $e->getMessage());
             return response()->json(['error' => 'An error occurred while retrieving pomodoro stats.'], 500);
         }
     }
-
-
 
 }
