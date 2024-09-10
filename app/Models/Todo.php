@@ -157,7 +157,7 @@ class Todo extends Model
         return $todo;
     }
 
-    public function getTodoList(): Collection
+    public function getTodoList(string $userId): Collection
     {
         $fields = [
             'todos.id',
@@ -177,6 +177,7 @@ class Todo extends Model
             ->leftJoin('tag_todo', 'todos.id', '=', 'tag_todo.todo_id')
             ->leftJoin('tags', 'tag_todo.tag_id', '=', 'tags.id')
             ->whereNull('todos.deleted_at')
+            ->where('todos.created_by', $userId)
             ->where('todos.is_archived', false)
             ->groupBy('todos.id', 'todos.title', 'todos.notes', 'todos.created_by', 'todos.firebase_todo_id', 'todos.start_time', 'todos.end_time', 'todos.date', 'todos.priority','todos.description')
             ->selectRaw('GROUP_CONCAT(tags.name) as tag_names')

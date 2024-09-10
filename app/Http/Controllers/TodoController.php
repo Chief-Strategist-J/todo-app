@@ -18,9 +18,10 @@ use function App\Helper\successMessage;
 
 class TodoController extends Controller
 {
-    public function index(): JsonResponse
+    public function getUserRelatedTodo(Request $req): JsonResponse    
     {
-        return successMessage(data: resolve(Todo::class)->getTodoList());
+        $user_id = $req->input('user_id');
+        return successMessage(data: resolve(Todo::class)->getTodoList($user_id));
     }
 
     public function getlistOfTodosPagignated(): JsonResponse

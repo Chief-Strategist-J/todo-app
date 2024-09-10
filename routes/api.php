@@ -45,7 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('todo')->name('todo.')->group(function () {
-        Route::get('/', [TodoController::class, 'index'])->name('index');
+        Route::post('/', [TodoController::class, 'getUserRelatedTodo'])->name('getUserRelatedTodo');
         Route::post('/store', [TodoController::class, 'store'])->name('store');
         Route::post('/deleteTodo', [TodoController::class, 'deleteTodo'])->name('deleteTodo');  // Delete Todo route
         Route::post('/updateTodo', [TodoController::class, 'updateTodo']);
