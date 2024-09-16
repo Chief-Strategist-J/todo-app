@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTodoRequest;
 use App\Http\Requests\UpdateTodoRequest;
 use App\Jobs\SendNotificationJob;
+use App\Models\Tag;
 use App\Models\Todo;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -62,6 +63,7 @@ class TodoController extends Controller
             SendNotificationJob::dispatch($todo->id, $title, $startMessage, $email, $startTime)->delay(getIndianTime($request->input('start_time')));
             SendNotificationJob::dispatch($todo->id, $title, $message, $email);
             SendNotificationJob::dispatch($todo->id, $title, $endMessage, $email, $endTime)->delay(getIndianTime($request->input('end_time')));
+
 
             return successMessage(
                 data: [
@@ -130,5 +132,9 @@ class TodoController extends Controller
 
     public function edit(Todo $todo)
     {
+    }
+
+    public function createTagPomodorowAndTodo(){
+        //
     }
 }

@@ -2,9 +2,33 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Http\Requests\StoreProjectRequest;
+use App\Jobs\FetchPaginatedTodos;
+
+use Exception;
+use InvalidArgumentException;
+use Carbon\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
+use function App\Helper\getIndianTime;
+use function App\Helper\successMessage;
+
+
 
 class Project extends Model
 {
@@ -86,4 +110,32 @@ class Project extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    public function createProject(array $data)
+    {
+        DB::transaction(function () use ($data) {
+            DB::table('projects')->insert($data);
+        });
+    }
+
+
+    public function fetchActiveProjects(int $creatorId): LengthAwarePaginator
+    {
+        return DB::table('projects')
+            ->where('created_by', $creatorId)
+            ->whereNull('deleted_at') // For soft deletes
+            ->where('archived', false)
+            ->select(['uuid', 'name', 'slug', 'description', 'status', 'is_public', 'start_date', 'end_date', 'created_at'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
+    }
+
+
+    public function updateProject(array $data, int $projectId): void
+    {
+        DB::table($this->table)
+            ->where('id', $projectId)
+            ->update($data);
+    }
+
 }

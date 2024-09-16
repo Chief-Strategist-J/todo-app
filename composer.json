@@ -8,7 +8,7 @@
         "php": "^8.2",
         "google/cloud-firestore": "^1.44",
         "kreait/firebase-php": "^7.13",
-        "laravel/framework": "^11.0",
+        "laravel/framework": "^11.23.0",
         "laravel/sanctum": "^4.0",
         "laravel/slack-notification-channel": "^3.3",
         "laravel/telescope": "^5.0",

@@ -18,11 +18,13 @@ return new class extends Migration
                   ->onDelete('cascade')
                   ->index()
                   ->name('fk_project_user_project_id'); // Unique name for the foreign key constraint
+
             $table->foreignId('user_id')
                   ->constrained('users')
                   ->onDelete('cascade')
                   ->index()
                   ->name('fk_project_user_user_id'); // Unique name for the foreign key constraint
+                  
             $table->string('role')->default('member')->index();
             
             // Add JSON columns
