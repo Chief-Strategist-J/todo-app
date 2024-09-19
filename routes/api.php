@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PomodoroController;
+use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
@@ -57,16 +58,29 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     
-    Route::prefix('pomodoro')->name('pomodoro.')->group(function () {
-        
+    Route::prefix('pomodoro')->name('pomodoro.')->group(function () { 
         Route::post('/createBulkPomodoros', [PomodoroController::class, 'createBulkPomodoros'])->name('createBulkPomodoros');
         Route::post('/startPomodoro', [PomodoroController::class, 'startPomodoro'])->name('startPomodoro');
         Route::post('/stopPomodoro', [PomodoroController::class, 'stopPomodoro'])->name('stopPomodoro');
         Route::post('/resumePomodoro', [PomodoroController::class, 'resumePomodoro'])->name('resumePomodoro');
         Route::post('/endPomodoro', [PomodoroController::class, 'endPomodoro'])->name('endPomodoro');
         Route::post('/getPomodoroStats', [PomodoroController::class, 'getPomodoroStats'])->name('getPomodoroStats');
-        
     });
+
+    Route::prefix('projects')->name('projects.')->group(function () {
+        Route::post('/', [ProjectController::class, 'createProject'])->name('create');
+        Route::post('/getPaginated', [ProjectController::class, 'getProjects'])->name('getPaginated');
+        Route::post('/updateProject', [ProjectController::class, 'updateProject'])->name('update');
+        Route::post('/assignTodos', [ProjectController::class, 'assignTodosToProjects'])->name('assignTodos');
+        Route::post('/getPaginatedProjectsForTodo', [ProjectController::class, 'getPaginatedProjectsForTodo'])->name('getPaginatedProjectsForTodo');
+        Route::post('/getPaginatedTodosForProject', [ProjectController::class, 'getPaginatedTodosForProject'])->name('getPaginatedTodosForProject');
+        Route::post('/delete', [ProjectController::class, 'deleteProject'])->name('delete');
+        Route::post('/bulkDelete', [ProjectController::class, 'bulkDeleteProjects'])->name('bulkDelete');
+        Route::post('/search', [ProjectController::class, 'searchProjects'])->name('search');
+        Route::post('/archive', [ProjectController::class, 'archiveProject'])->name('archive');
+        Route::post('/restore', [ProjectController::class, 'restoreProject'])->name('restore');
+    });
+    
 
 });
 

@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AssignTodosToProjectsRequest;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
+
+use function App\Helper\errorMsg;
 use function App\Helper\getIndianTime;
 use function App\Helper\successMessage;
 
@@ -27,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
 
@@ -42,9 +46,9 @@ class ProjectController extends Controller
 
         return [
             'uuid' => $uuid,
-            'name' => Crypt::encryptString($validated['name']),
+            'name' => $validated['name'], // No encryption
             'slug' => Crypt::encryptString($slug),
-            'description' => Crypt::encryptString($validated['description'] ?? ''),
+            'description' => $validated['description'] ?? '', // No encryption
             'status' => Crypt::encryptString($validated['status'] ?? 'pending'),
             'is_public' => (bool) ($validated['is_public'] ?? false),
             'project_code' => Crypt::encryptString($project_code),
@@ -57,6 +61,7 @@ class ProjectController extends Controller
         ];
     }
 
+
     private function storeProject(array $data): void
     {
         $project = new Project();
@@ -65,20 +70,21 @@ class ProjectController extends Controller
 
     private function decryptProjectData(LengthAwarePaginator $projects): LengthAwarePaginator
     {
+        // Decrypt each project in the collection
         $projects->getCollection()->transform(function ($project) {
-            $project->name = Crypt::decryptString($project->name);
             $project->slug = Crypt::decryptString($project->slug);
-            $project->description = Crypt::decryptString($project->description);
             $project->status = Crypt::decryptString($project->status);
+            $project->project_code = Crypt::decryptString($project->project_code);
             return $project;
         });
-    
+
         return $projects;
-    }    
+    }
+
 
     private function prepareAndEncryptData(array $data): array
     {
-        $encryptable = ['name', 'slug', 'description', 'status', 'project_code'];
+        $encryptable = ['slug', 'status', 'project_code'];
 
         foreach ($encryptable as $field) {
             if (isset($data[$field])) {
@@ -98,10 +104,9 @@ class ProjectController extends Controller
             $validated = $request->validated();
             $data = $this->prepareProjectData($validated);
             $this->storeProject($data);
-
-            return response()->json(['message' => 'Project created successfully.']);
+            return successMessage(message: 'Assignments successfully processed.');
         } catch (Exception $e) {
-            return response()->json(['message' => 'Error creating project', 'error' => $e->getMessage()], 500);
+            return errorMsg(message: 'An error occurred while processing the assignments.', data: $e->getMessage(), statusCode: 500);
         }
     }
 
@@ -110,6 +115,8 @@ class ProjectController extends Controller
     {
         $creatorId = $request->input('creator_id');
         $cacheKey = "projects_by_creator_{$creatorId}";
+
+
         $project = new Project();
 
         return Cache::flexible($cacheKey, [3600, 7200], function () use ($creatorId, $project) {
@@ -121,18 +128,172 @@ class ProjectController extends Controller
     // update the projects
     public function updateProject(UpdateProjectRequest $request, int $projectId)
     {
-        
+
         $validated = $request->validated();
         $projectId = $request->input('project_id');
-        
         $updateData = $this->prepareAndEncryptData($validated);
 
         $project = new Project();
+
         $project->updateProject($updateData, $projectId);
 
-        return response()->json(['message' => 'Project updated successfully.']);
+        return successMessage(message: 'Project updated successfully.');
     }
 
-    
+    public function assignTodosToProjects(AssignTodosToProjectsRequest $request): JsonResponse
+    {
+        try {
+            $project = new Project();
+            $project->assignTodoToProjects($request->input('assignments'));
+            return successMessage('Assignments successfully processed.');
+        } catch (Exception $e) {
+            return errorMsg('An error occurred while processing the assignments.', data: $e->getMessage(), statusCode: 500);
+        }
+    }
+
+
+    public function getPaginatedProjectsForTodo(Request $request): JsonResponse
+    {
+        $project = new Project();
+
+        $todoId = $request->input('todo_id');
+        $userId = $request->input('user_id');
+        $perPage = 20;
+
+        $paginatedProjects = $project->getPaginatedProjectsForTodo(
+            $todoId,
+            $userId,
+            $request->input('page', 1),
+            $perPage
+        );
+
+        // Decrypt project data
+        $paginatedProjects = $this->decryptProjectData($paginatedProjects);
+
+        return successMessage('Projects retrieved successfully', true, $paginatedProjects);
+    }
+
+
+    public function getPaginatedTodosForProject(Request $request): JsonResponse
+    {
+        $project = new Project();
+
+        $projectId = (int) $request->input('project_id');
+        $userId = (int) $request->input('user_id');
+        $page = (int) $request->input('page', 1);
+        $perPage = 20;
+
+        $paginatedTodos = $project->getPaginatedTodosForProject(
+            $projectId,
+            $userId,
+            $page,
+            $perPage
+        );
+
+        return successMessage('Todos retrieved successfully.', true, $paginatedTodos);
+    }
+
+    public function deleteProject(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'project_id' => 'required|integer|exists:projects,id',
+        ]);
+
+        if ($validator->fails()) {
+            return errorMsg('Validation errors', 422, $validator->errors());
+        }
+
+        $projectId = (int) $request->input('project_id');
+
+        try {
+            $project = new Project();
+            $project->deleteProjectAndAssociates($projectId);
+            return successMessage('Project and its associated records have been successfully deleted.');
+        } catch (Exception $e) {
+            return errorMsg($e->getMessage(), 500);
+        }
+    }
+
+    public function bulkDeleteProjects(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'project_ids' => 'required|array',
+            'project_ids.*' => 'integer|exists:projects,id',
+        ]);
+
+        if ($validator->fails()) {
+            return errorMsg('Validation errors', 422, $validator->errors());
+        }
+
+        $projectIds = $request->input('project_ids');
+
+        try {
+            $project = new Project();
+            $project->bulkDeleteProjects($projectIds);
+
+            return successMessage('Selected projects and their associated records have been successfully deleted.');
+        } catch (Exception $e) {
+            return errorMsg($e->getMessage(), 500);
+        }
+    }
+
+    public function searchProjects(Request $request): JsonResponse
+    {
+        $searchTerm = $request->input('search');
+        $page = (int) $request->input('page', 1);
+        $perPage = (int) $request->input('perPage', 20);
+
+        if (!$searchTerm) {
+            return errorMsg('Search term is required');
+        }
+
+        $paginatedProjects = (new Project())->searchProjects($searchTerm, $page, $perPage);
+
+        // Decrypt project data
+        $paginatedProjects = $this->decryptProjectData($paginatedProjects);
+
+        return successMessage('Projects retrieved successfully', true, $paginatedProjects);
+    }
+
+
+    public function archiveProject(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'project_id' => 'required|integer|exists:projects,id',
+        ]);
+
+        if ($validator->fails()) {
+            return errorMsg('Validation errors', 422, $validator->errors());
+        }
+
+        $projectId = $request->input('project_id');
+
+        try {
+            $project = new Project();
+            $project->archiveProject($projectId);
+            return successMessage('Project has been successfully archived.');
+        } catch (Exception $e) {
+            return errorMsg($e->getMessage(), 500);
+        }
+    }
+
+    public function restoreProject(Request $request): JsonResponse
+    {
+        $request->validate([
+            'project_id' => 'required|integer|exists:projects,id',
+        ]);
+
+        $projectId = (int) $request->input('project_id');
+
+        try {
+            $project = new Project(); // Instantiate the model
+            $project->restoreProjectById($projectId); // Call the model method to restore
+
+            return successMessage("Project with ID {$projectId} has been restored.");
+        } catch (Exception $e) {
+            return errorMsg($e->getMessage());
+        }
+    }
+
 
 }
