@@ -128,7 +128,7 @@ class Project extends Model
             ->where('created_by', $creatorId)
             ->whereNull('deleted_at') // For soft deletes
             ->where('is_archived', false)
-            ->select(['id', 'uuid', 'name', 'slug', 'description', 'status', 'is_public', 'start_date', 'end_date', 'created_at'])
+            ->select(['id', 'uuid', 'name', 'slug', 'description', 'status', 'is_public', 'start_date', 'end_date', 'created_at','project_code'])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
     }
