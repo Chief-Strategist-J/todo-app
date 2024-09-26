@@ -26,7 +26,12 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             TodoSeeder::class,
-            TagSeeder::class
+            TagSeeder::class,
+            ProjectCategorySeeder::class,
+            ProjectPrioritySeeder::class,
+            ProjectTypeSeeder::class,
+            ProjectPhaseSeeder::class,
+            ProjectStatusSeeder::class,
         ]);
     }
 }

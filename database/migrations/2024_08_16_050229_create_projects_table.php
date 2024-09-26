@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -60,6 +59,44 @@ return new class extends Migration
 
             $table->softDeletes();
             $table->timestamps();
+
+            $table->foreignId('category_id')
+                ->nullable()
+                ->constrained('project_categories')
+                ->onDelete('set null')
+                ->index()
+                ->name('projects_category_id_fk');
+
+            $table->foreignId('priority_id')
+                ->nullable()
+                ->constrained('project_priorities')
+                ->onDelete('set null')
+                ->index()
+                ->name('projects_priority_id_fk');
+
+            $table->foreignId('type_id')
+                ->nullable()
+                ->constrained('project_types')
+                ->onDelete('set null')
+                ->index()
+                ->name('projects_type_id_fk');
+
+            $table->foreignId('phase_id')
+                ->nullable()
+                ->constrained('project_phases')
+                ->onDelete('set null')
+                ->index()
+                ->name('projects_phase_id_fk');
+
+            $table->foreignId('status_id')
+                ->nullable()
+                ->constrained('project_statuses')
+                ->onDelete('set null')
+                ->index()
+                ->name('projects_status_id_fk');
+
+            // Create composite index
+            $table->index(['category_id', 'priority_id', 'status_id'], 'category_priority_status_index');
 
             // Composite indexes with shortened names
             $table->index(['status', 'priority', 'project_type'], 'status_priority_type_index');
