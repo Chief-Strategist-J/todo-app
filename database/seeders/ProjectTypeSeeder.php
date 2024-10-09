@@ -11,10 +11,10 @@ class ProjectTypeSeeder extends Seeder
     public function run()
     {
         $types = [
-            ['name' => 'Internal'],
-            ['name' => 'External'],
-            ['name' => 'Client-based'],
-            ['name' => 'Research'],
+            ['name' => 'Internal','created_by' => 1],
+            ['name' => 'External','created_by' => 1],
+            ['name' => 'Client-based','created_by' => 1],
+            ['name' => 'Research','created_by' => 1],
         ];
         
         foreach ($types as $type) {

@@ -11,11 +11,11 @@ class ProjectPhaseSeeder extends Seeder
     public function run()
     {
         $phases = [
-            ['name' => 'Initiation'],
-            ['name' => 'Planning'],
-            ['name' => 'Execution'],
-            ['name' => 'Monitoring & Controlling'],
-            ['name' => 'Closure'],
+            ['name' => 'Initiation','created_by' => 1],
+            ['name' => 'Planning','created_by' => 1],
+            ['name' => 'Execution','created_by' => 1],
+            ['name' => 'Monitoring & Controlling','created_by' => 1],
+            ['name' => 'Closure','created_by' => 1],
         ];
         
         foreach ($phases as $phase) {

@@ -128,7 +128,7 @@ class Project extends Model
             ->where('created_by', $creatorId)
             ->whereNull('deleted_at') // For soft deletes
             ->where('is_archived', false)
-            ->select(['id', 'uuid', 'name', 'slug', 'description', 'status', 'is_public', 'start_date', 'end_date', 'created_at','project_code'])
+            ->select(['id', 'uuid', 'name', 'slug', 'description', 'status', 'is_public', 'start_date', 'end_date', 'created_at', 'project_code'])
             ->orderBy('created_at', 'desc')
             ->paginate(20);
     }
@@ -314,8 +314,8 @@ class Project extends Model
                 'project_expenses',
                 'project_risks',
                 'project_audits',
-                
-                
+
+
             ];
 
             foreach ($tables as $table) {
@@ -380,6 +380,50 @@ class Project extends Model
             throw new Exception("Project with ID {$projectId} does not exist or is not soft-deleted.");
         }
     }
+
+
+
+    function getProjectData()
+    {
+        return Cache::flexible("project_data_for_user_project", [60, 120], function () {
+            return DB::transaction(function () {
+                
+                $categories = DB::table('project_categories')
+                    ->select('id', 'name')
+                    ->get();
+
+                // Fetch project phases
+                $phases = DB::table('project_phases')
+                    ->select('id', 'name')
+                    ->get();
+
+                // Fetch project priorities
+                $priorities = DB::table('project_priorities')
+                    ->select('id', 'name')
+                    ->get();
+
+                // Fetch project types
+                $types = DB::table('project_types')
+                    ->select('id', 'name')
+                    ->get();
+
+                // Fetch project statuses
+                $statuses = DB::table('project_statuses')
+                    ->select('id', 'name')
+                    ->get();
+
+                // Grouping data into a structured format
+                return [
+                    'categories' => $categories,
+                    'phases' => $phases,
+                    'priorities' => $priorities,
+                    'types' => $types,
+                    'statuses' => $statuses,
+                ];
+            });
+        });
+    }
+
 
 
 

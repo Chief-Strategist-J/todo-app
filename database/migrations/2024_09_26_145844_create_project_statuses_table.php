@@ -19,6 +19,9 @@ return new class extends Migration {
                 ->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(indicators, "$.color"))')
                 ->index('indicators_color_index');
 
+            // Adding created_by foreign key
+            $table->foreignId('created_by')->constrained('users')->onDelete('cascade')->index('idx_created_by_statuses');
+
             $table->timestamps();
         });
     }

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class ProjectCategory extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'metadata'];
+    protected $fillable = ['name', 'metadata','created_by'];
 
     protected $casts = [
         'metadata' => 'array',

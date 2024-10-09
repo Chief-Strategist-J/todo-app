@@ -16,6 +16,7 @@ Route::get('/user', function (Request $request) {
 Route::post('loginOrSignUp', [UserController::class, 'loginOrSignUp'])->name('loginOrSignUp');
 Route::post('forgetPassword', [UserController::class, 'forgetPassword'])->name('forgetPassword');
 Route::post('verifyPasswordOtp', [UserController::class, 'verifyPasswordOtp'])->name('verifyPasswordOtp');
+Route::get('getProjectCategoryDetail', [ProjectController::class, 'getProjectCategoryDetail'])->name('getProjectCategoryDetail');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('createOtp', [UserController::class, 'createOtp'])->name('createOtp');

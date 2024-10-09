@@ -9,7 +9,7 @@ class ProjectStatus extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'indicators'];
+    protected $fillable = ['name', 'indicators','created_by'];
 
     protected $casts = [
         'indicators' => 'array',

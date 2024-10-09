@@ -11,11 +11,11 @@ class ProjectStatusSeeder extends Seeder
     public function run()
     {
         $statuses = [
-            ['name' => 'Pending'],
-            ['name' => 'In Progress'],
-            ['name' => 'On Hold'],
-            ['name' => 'Completed'],
-            ['name' => 'Cancelled'],
+            ['name' => 'Pending','created_by' => 1],
+            ['name' => 'In Progress','created_by' => 1],
+            ['name' => 'On Hold','created_by' => 1],
+            ['name' => 'Completed','created_by' => 1],
+            ['name' => 'Cancelled','created_by' => 1],
         ];
         
         foreach ($statuses as $status) {

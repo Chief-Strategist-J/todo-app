@@ -295,5 +295,14 @@ class ProjectController extends Controller
         }
     }
 
+    public function getProjectCategoryDetail(Request $request): JsonResponse
+    {
+        try {
+            $project = new Project(); 
+            return successMessage("get list of project category data.",data: $project->getProjectData());
+        } catch (Exception $e) {
+            return errorMsg($e->getMessage());
+        }
+    }
 
 }

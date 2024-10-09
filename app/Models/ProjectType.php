@@ -9,7 +9,7 @@ class ProjectType extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'attributes'];
+    protected $fillable = ['name', 'attributes','created_by'];
 
     protected $casts = [
         'attributes' => 'array',

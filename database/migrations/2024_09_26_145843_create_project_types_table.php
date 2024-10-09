@@ -15,11 +15,14 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique()->index();
             $table->json('attributes')->nullable();
-
+        
             $table->string('attributes_type')
-                  ->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.type"))')
-                  ->index('attributes_type_index');
-                  
+                ->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(attributes, "$.type"))')
+                ->index('attributes_type_index');
+        
+            // Adding created_by foreign key
+            $table->foreignId('created_by')->constrained('users')->onDelete('cascade')->index('idx_created_by_types');
+        
             $table->timestamps();
         });
     }

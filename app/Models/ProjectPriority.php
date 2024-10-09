@@ -9,7 +9,7 @@ class ProjectPriority extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'settings'];
+    protected $fillable = ['name', 'settings','created_by'];
 
     protected $casts = [
         'settings' => 'array',

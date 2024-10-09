@@ -11,10 +11,10 @@ class ProjectPrioritySeeder extends Seeder
     public function run()
     {
         $priorities = [
-            ['name' => 'Low'],
-            ['name' => 'Medium'],
-            ['name' => 'High'],
-            ['name' => 'Urgent'],
+            ['name' => 'Low','created_by' => 1],
+            ['name' => 'Medium','created_by' => 1],
+            ['name' => 'High','created_by' => 1],
+            ['name' => 'Urgent','created_by' => 1],
         ];
         
         foreach ($priorities as $priority) {

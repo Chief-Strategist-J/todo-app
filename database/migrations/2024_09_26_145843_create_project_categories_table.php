@@ -14,6 +14,8 @@ return new class extends Migration {
             $table->id();
             $table->string('name')->unique()->index();
             $table->json('metadata')->nullable();
+            $table->foreignId('created_by')->constrained('users')->onDelete('cascade')->index('idx_created_by');
+
             
             $table->string('metadata_key')
                 ->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.key"))')

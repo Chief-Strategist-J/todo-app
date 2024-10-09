@@ -14,11 +14,14 @@ return new class extends Migration {
             $table->id();
             $table->string('name')->unique()->index();
             $table->json('details')->nullable();
-
+        
             $table->string('details_stage')
                 ->virtualAs('JSON_UNQUOTE(JSON_EXTRACT(details, "$.stage"))')
                 ->index('details_stage_index');
-
+        
+            // Adding created_by foreign key
+            $table->foreignId('created_by')->constrained('users')->onDelete('cascade')->index('idx_created_by_phases');
+        
             $table->timestamps();
         });
     }

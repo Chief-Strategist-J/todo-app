@@ -9,7 +9,7 @@ class ProjectPhase extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'details'];
+    protected $fillable = ['name', 'details','created_by'];
 
     protected $casts = [
         'details' => 'array',
