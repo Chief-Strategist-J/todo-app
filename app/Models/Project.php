@@ -387,9 +387,10 @@ class Project extends Model
     {
         return Cache::flexible("project_data_for_user_project", [60, 120], function () {
             return DB::transaction(function () {
-                
+
                 $categories = DB::table('project_categories')
                     ->select('id', 'name')
+                    ->where('created_by', 1) // Add user condition
                     ->get();
 
                 // Fetch project phases
@@ -413,6 +414,59 @@ class Project extends Model
                     ->get();
 
                 // Grouping data into a structured format
+                return [
+                    'categories' => $categories,
+                    'phases' => $phases,
+                    'priorities' => $priorities,
+                    'types' => $types,
+                    'statuses' => $statuses,
+                ];
+            });
+        });
+    }
+
+    function getProjectDataForUser(int $userId)
+    {
+
+        $cacheKey = "project_data_for_user_{$userId}";
+
+        if ($userId === 1) {
+            throw new InvalidArgumentException('User ID must not be 1.');
+        }
+
+        return Cache::flexible($cacheKey, [60, 120], function () use ($userId) {
+            return DB::transaction(function () use ($userId) {
+
+                $categories = DB::table('project_categories')
+                    ->select('id', 'name')
+                    ->where('created_by', $userId)
+                    ->get();
+
+
+                $phases = DB::table('project_phases')
+                    ->select('id', 'name')
+                    ->where('created_by', $userId)
+                    ->get();
+
+
+                $priorities = DB::table('project_priorities')
+                    ->select('id', 'name')
+                    ->where('created_by', $userId)
+                    ->get();
+
+
+                $types = DB::table('project_types')
+                    ->select('id', 'name')
+                    ->where('created_by', $userId)
+                    ->get();
+
+
+                $statuses = DB::table('project_statuses')
+                    ->select('id', 'name')
+                    ->where('created_by', $userId)
+                    ->get();
+
+
                 return [
                     'categories' => $categories,
                     'phases' => $phases,

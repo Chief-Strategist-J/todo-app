@@ -298,8 +298,25 @@ class ProjectController extends Controller
     public function getProjectCategoryDetail(Request $request): JsonResponse
     {
         try {
-            $project = new Project(); 
-            return successMessage("get list of project category data.",data: $project->getProjectData());
+            $project = new Project();
+            return successMessage("get list of project category data.", data: $project->getProjectData());
+        } catch (Exception $e) {
+            return errorMsg($e->getMessage());
+        }
+    }
+
+    public function getProjectForUserCategoryDetail(Request $request): JsonResponse
+    {
+        
+        $request->validate([
+            'user_id' => 'required|integer|not_in:1'
+        ]);
+
+        $userId = $request->input('user_id');
+
+        try {
+            $project = new Project();
+            return successMessage("Get list of project category data.", data: $project->getProjectDataForUser($userId));
         } catch (Exception $e) {
             return errorMsg($e->getMessage());
         }

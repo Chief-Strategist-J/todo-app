@@ -80,6 +80,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/search', [ProjectController::class, 'searchProjects'])->name('search');
         Route::post('/archive', [ProjectController::class, 'archiveProject'])->name('archive');
         Route::post('/restore', [ProjectController::class, 'restoreProject'])->name('restore');
+        Route::post('/getProjectForUserCategoryDetail', [ProjectController::class, 'getProjectForUserCategoryDetail'])->name('getProjectForUserCategoryDetail');
+
     });
     
 
