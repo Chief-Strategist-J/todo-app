@@ -1,7 +1,12 @@
 <?php
 
 use App\Http\Controllers\PomodoroController;
+use App\Http\Controllers\ProjectCategoryController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectPhaseController;
+use App\Http\Controllers\ProjectPriorityController;
+use App\Http\Controllers\ProjectStatusController;
+use App\Http\Controllers\ProjectTypeController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TodoController;
 use App\Http\Controllers\UserController;
@@ -82,6 +87,41 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/restore', [ProjectController::class, 'restoreProject'])->name('restore');
         Route::post('/getProjectForUserCategoryDetail', [ProjectController::class, 'getProjectForUserCategoryDetail'])->name('getProjectForUserCategoryDetail');
 
+    });
+
+    Route::prefix('v1/categories')->name('categories.')->group(function () {
+        Route::get('/user', [ProjectCategoryController::class, 'retrieveCategoriesByUser'])->name('retrieveByUser');
+        Route::post('/create', [ProjectCategoryController::class, 'createCategoryForUser'])->name('create');
+        Route::post('/update', [ProjectCategoryController::class, 'updateCategoryForUser'])->name('update');
+        Route::post('/delete', [ProjectCategoryController::class, 'deleteCategoryForUser'])->name('delete'); // Assuming 'id' is passed as a route parameter
+    });
+
+    Route::prefix('v1/phases')->name('phases.')->group(function () {
+        Route::post('/retrieve', [ProjectPhaseController::class, 'retrievePhasesByUser'])->name('retrieve');
+        Route::post('/create', [ProjectPhaseController::class, 'createPhaseForUser'])->name('create');
+        Route::post('/update', [ProjectPhaseController::class, 'updatePhaseForUser'])->name('update');
+        Route::post('/delete', [ProjectPhaseController::class, 'deletePhaseForUser'])->name('delete');
+    });
+
+    Route::prefix('v1/priorities')->name('priorities.')->group(function () {
+        Route::post('/retrieve', [ProjectPriorityController::class, 'retrievePrioritiesByUser'])->name('retrieve');
+        Route::post('/create', [ProjectPriorityController::class, 'createPriorityForUser'])->name('create');
+        Route::post('/update', [ProjectPriorityController::class, 'updatePriorityForUser'])->name('update');
+        Route::post('/delete', [ProjectPriorityController::class, 'deletePriorityForUser'])->name('delete');
+    });
+    
+    Route::prefix('v1/statuses')->name('statuses.')->group(function () {
+        Route::post('/retrieve', [ProjectStatusController::class, 'retrieveStatusesByUser'])->name('retrieve');
+        Route::post('/create', [ProjectStatusController::class, 'createStatusForUser'])->name('create');
+        Route::post('/update', [ProjectStatusController::class, 'updateStatusForUser'])->name('update');
+        Route::post('/delete', [ProjectStatusController::class, 'deleteStatusForUser'])->name('delete');
+    });
+    
+    Route::prefix('v1/types')->name('types.')->group(function () {
+        Route::post('/retrieve', [ProjectTypeController::class, 'retrieveTypesByUser'])->name('retrieve');
+        Route::post('/create', [ProjectTypeController::class, 'createTypeForUser'])->name('create');
+        Route::post('/update', [ProjectTypeController::class, 'updateTypeForUser'])->name('update');
+        Route::post('/delete', [ProjectTypeController::class, 'deleteTypeForUser'])->name('delete');
     });
     
 
