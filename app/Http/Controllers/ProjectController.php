@@ -37,12 +37,22 @@ use Illuminate\Validation\ValidationException;
 class ProjectController extends Controller
 {
 
+    protected $project;
+
+
+    public function __construct(Project $project)
+    {
+        $this->project = $project;
+    }
+
     private function prepareProjectData(array $validated): array
     {
         $uuid = (string) Str::uuid();
         $slug = Str::slug($validated['name']);
         $project_code = 'PRJ-' . strtoupper(Str::random(6));
         $start_date = Carbon::today();
+
+
 
         return [
             'uuid' => $uuid,
@@ -62,11 +72,36 @@ class ProjectController extends Controller
     }
 
 
-    private function storeProject(array $data): void
+    private function storeProject(array $data): int
     {
-        $project = new Project();
-        $project->createProject($data);
+        return $this->project->createProject($data);
     }
+
+    private function assignCategory($projectId, array $categoryNames)
+    {
+        return $this->project->assignCategoriesToProject($projectId, $categoryNames);
+    }
+
+    private function assignPhase($projectId, array $phaseNames)
+    {
+        return $this->project->assignPhasesToProject($projectId, $phaseNames);
+    }
+
+    private function assignStatus($projectId, array $statusNames)
+    {
+        return $this->project->assignStatusesToProject($projectId, $statusNames);
+    }
+
+    private function assignPriorities($projectId, array $priorityNames)
+    {
+        return $this->project->assignPrioritiesToProject($projectId, $priorityNames);
+    }
+
+    private function assignTypes($projectId, array $typeNames)
+    {
+        return $this->project->assignTypesToProject($projectId, $typeNames);
+    }
+
 
     private function decryptProjectData(LengthAwarePaginator $projects): LengthAwarePaginator
     {
@@ -103,7 +138,34 @@ class ProjectController extends Controller
         try {
             $validated = $request->validated();
             $data = $this->prepareProjectData($validated);
-            $this->storeProject($data);
+
+            $projectId = $this->storeProject($data);
+
+            $this->assignCategory(
+                projectId: $projectId,
+                categoryNames: [$validated['project_category_name']]
+            );
+
+            $this->assignPhase(
+                projectId: $projectId,
+                phaseNames: [$validated['project_phase_name']]
+            );
+
+            $this->assignStatus(
+                projectId: $projectId,
+                statusNames: [$validated['project_status_name']]
+            );
+
+            $this->assignPriorities(
+                projectId: $projectId,
+                priorityNames: [$validated['project_priority_name']]
+            );
+
+            $this->assignTypes(
+                projectId: $projectId,
+                typeNames: [$validated['project_priority_name']]
+            );
+
             return successMessage(message: 'Assignments successfully processed.');
         } catch (Exception $e) {
             return errorMsg(message: 'An error occurred while processing the assignments.', data: $e->getMessage(), statusCode: 500);
@@ -115,9 +177,7 @@ class ProjectController extends Controller
     {
         $creatorId = $request->input('creator_id');
         $cacheKey = "projects_by_creator_{$creatorId}";
-
-
-        $project = new Project();
+        $project = $this->project;
 
         return Cache::flexible($cacheKey, [3600, 7200], function () use ($creatorId, $project) {
             $projects = $project->fetchActiveProjects($creatorId);
@@ -128,14 +188,11 @@ class ProjectController extends Controller
     // update the projects
     public function updateProject(UpdateProjectRequest $request, int $projectId)
     {
-
         $validated = $request->validated();
         $projectId = $request->input('project_id');
         $updateData = $this->prepareAndEncryptData($validated);
 
-        $project = new Project();
-
-        $project->updateProject($updateData, $projectId);
+        $this->project->updateProject($updateData, $projectId);
 
         return successMessage(message: 'Project updated successfully.');
     }
@@ -143,8 +200,7 @@ class ProjectController extends Controller
     public function assignTodosToProjects(AssignTodosToProjectsRequest $request): JsonResponse
     {
         try {
-            $project = new Project();
-            $project->assignTodoToProjects($request->input('assignments'));
+            $this->project->assignTodoToProjects($request->input('assignments'));
             return successMessage('Assignments successfully processed.');
         } catch (Exception $e) {
             return errorMsg('An error occurred while processing the assignments.', data: $e->getMessage(), statusCode: 500);
@@ -154,13 +210,11 @@ class ProjectController extends Controller
 
     public function getPaginatedProjectsForTodo(Request $request): JsonResponse
     {
-        $project = new Project();
-
         $todoId = $request->input('todo_id');
         $userId = $request->input('user_id');
         $perPage = 20;
 
-        $paginatedProjects = $project->getPaginatedProjectsForTodo(
+        $paginatedProjects = $this->project->getPaginatedProjectsForTodo(
             $todoId,
             $userId,
             $request->input('page', 1),
@@ -176,14 +230,14 @@ class ProjectController extends Controller
 
     public function getPaginatedTodosForProject(Request $request): JsonResponse
     {
-        $project = new Project();
+
 
         $projectId = (int) $request->input('project_id');
         $userId = (int) $request->input('user_id');
         $page = (int) $request->input('page', 1);
         $perPage = 20;
 
-        $paginatedTodos = $project->getPaginatedTodosForProject(
+        $paginatedTodos = $this->project->getPaginatedTodosForProject(
             $projectId,
             $userId,
             $page,
@@ -206,8 +260,7 @@ class ProjectController extends Controller
         $projectId = (int) $request->input('project_id');
 
         try {
-            $project = new Project();
-            $project->deleteProjectAndAssociates($projectId);
+            $this->project->deleteProjectAndAssociates($projectId);
             return successMessage('Project and its associated records have been successfully deleted.');
         } catch (Exception $e) {
             return errorMsg($e->getMessage(), 500);
@@ -228,9 +281,7 @@ class ProjectController extends Controller
         $projectIds = $request->input('project_ids');
 
         try {
-            $project = new Project();
-            $project->bulkDeleteProjects($projectIds);
-
+            $this->project->bulkDeleteProjects($projectIds);
             return successMessage('Selected projects and their associated records have been successfully deleted.');
         } catch (Exception $e) {
             return errorMsg($e->getMessage(), 500);
@@ -247,7 +298,7 @@ class ProjectController extends Controller
             return errorMsg('Search term is required');
         }
 
-        $paginatedProjects = (new Project())->searchProjects($searchTerm, $page, $perPage);
+        $paginatedProjects = $this->project->searchProjects($searchTerm, $page, $perPage);
 
         // Decrypt project data
         $paginatedProjects = $this->decryptProjectData($paginatedProjects);
@@ -269,8 +320,7 @@ class ProjectController extends Controller
         $projectId = $request->input('project_id');
 
         try {
-            $project = new Project();
-            $project->archiveProject($projectId);
+            $this->project->archiveProject($projectId);
             return successMessage('Project has been successfully archived.');
         } catch (Exception $e) {
             return errorMsg($e->getMessage(), 500);
@@ -286,9 +336,7 @@ class ProjectController extends Controller
         $projectId = (int) $request->input('project_id');
 
         try {
-            $project = new Project(); // Instantiate the model
-            $project->restoreProjectById($projectId); // Call the model method to restore
-
+            $this->project->restoreProjectById($projectId);
             return successMessage("Project with ID {$projectId} has been restored.");
         } catch (Exception $e) {
             return errorMsg($e->getMessage());
@@ -298,8 +346,7 @@ class ProjectController extends Controller
     public function getProjectCategoryDetail(Request $request): JsonResponse
     {
         try {
-            $project = new Project();
-            return successMessage("get list of project category data.", data: $project->getProjectData());
+            return successMessage("get list of project category data.", data: $this->project->getProjectData());
         } catch (Exception $e) {
             return errorMsg($e->getMessage());
         }
@@ -307,7 +354,7 @@ class ProjectController extends Controller
 
     public function getProjectForUserCategoryDetail(Request $request): JsonResponse
     {
-        
+
         $request->validate([
             'user_id' => 'required|integer|not_in:1'
         ]);
@@ -315,8 +362,7 @@ class ProjectController extends Controller
         $userId = $request->input('user_id');
 
         try {
-            $project = new Project();
-            return successMessage("Get list of project category data.", data: $project->getProjectDataForUser($userId));
+            return successMessage("Get list of project category data.", data: $this->project->getProjectDataForUser($userId));
         } catch (Exception $e) {
             return errorMsg($e->getMessage());
         }

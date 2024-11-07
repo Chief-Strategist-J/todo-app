@@ -47,6 +47,11 @@ class StoreProjectRequest extends FormRequest
             'is_public' => 'nullable|boolean',
             'created_by' => 'required|exists:users,id',
             'updated_by' => 'nullable|exists:users,id',
+            'project_category_name' => 'nullable|string',
+            'project_phase_name' => 'nullable|string',
+            'project_status_name' => 'nullable|string',
+            'project_priority_name' => 'nullable|string',
+            'project_type_name' => 'nullable|string',
         ];
     }
 }

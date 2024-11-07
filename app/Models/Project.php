@@ -116,10 +116,169 @@ class Project extends Model
 
     public function createProject(array $data)
     {
-        DB::transaction(function () use ($data) {
-            DB::table('projects')->insert($data);
+        return DB::transaction(function () use ($data) {
+            $existingProject = DB::table('projects')->where('name', $data['name'])->first();
+
+            if ($existingProject) {
+                throw new Exception('A project with the same name already exists.');
+            }
+
+            return DB::table('projects')->insertGetId($data);
         });
     }
+
+    public function assignCategoriesToProject(int $projectId, array $categoryNames): void
+    {
+        if (empty($categoryNames)) {
+            return;
+        }
+
+        $uniqueCategoryNames = array_unique($categoryNames);
+        $chunkSize = 1000;
+        foreach (array_chunk($uniqueCategoryNames, $chunkSize) as $chunkedCategoryNames) {
+
+            DB::table('project_category')->insertUsing(
+                ['project_id', 'category_id', 'created_at', 'updated_at'],
+                DB::table('project_categories')
+                    ->leftJoin('project_category', function ($join) use ($projectId) {
+                        $join->on('project_categories.id', '=', 'project_category.category_id')
+                            ->where('project_category.project_id', '=', $projectId);
+                    })
+                    ->select([
+                        DB::raw("$projectId as project_id"),
+                        'project_categories.id as category_id',
+                        DB::raw("CURRENT_TIMESTAMP as created_at"),
+                        DB::raw("CURRENT_TIMESTAMP as updated_at")
+                    ])
+                    ->whereNull('project_category.category_id')
+                    ->whereIn('project_categories.name', $chunkedCategoryNames)
+            );
+        }
+    }
+
+    public function assignPhasesToProject(int $projectId, array $phaseNames): void
+    {
+        if (empty($phaseNames)) {
+            return;
+        }
+
+        $uniquePhaseNames = array_unique($phaseNames);
+        $chunkSize = 1000;
+        foreach (array_chunk($uniquePhaseNames, $chunkSize) as $chunkedPhaseNames) {
+
+            DB::table('project_phase')->insertUsing(
+                ['project_id', 'phase_id', 'created_at', 'updated_at'],
+                DB::table('project_phases')
+                    ->leftJoin('project_phase', function ($join) use ($projectId) {
+                        $join->on('project_phases.id', '=', 'project_phase.phase_id')
+                            ->where('project_phase.project_id', '=', $projectId);
+                    })
+                    ->select([
+                        DB::raw("$projectId as project_id"),
+                        'project_phases.id as phase_id',
+                        DB::raw("CURRENT_TIMESTAMP as created_at"),
+                        DB::raw("CURRENT_TIMESTAMP as updated_at")
+                    ])
+                    ->whereNull('project_phase.phase_id')
+                    ->whereIn('project_phases.name', $chunkedPhaseNames)
+            );
+        }
+    }
+
+    public function assignStatusesToProject(int $projectId, array $statusNames): void
+    {
+        if (empty($statusNames)) {
+            return;
+        }
+
+        $uniqueStatusNames = array_unique($statusNames);
+
+        $chunkSize = 1000;
+        foreach (array_chunk($uniqueStatusNames, $chunkSize) as $chunkedStatusNames) {
+
+            DB::table('project_project_status')->insertUsing(
+                ['project_id', 'status_id', 'created_at', 'updated_at'],
+                DB::table('project_statuses')
+                    ->leftJoin('project_project_status', function ($join) use ($projectId) {
+                        $join->on('project_statuses.id', '=', 'project_project_status.status_id')
+                            ->where('project_project_status.project_id', '=', $projectId);
+                    })
+                    ->select([
+                        DB::raw("$projectId as project_id"),
+                        'project_statuses.id as status_id',
+                        DB::raw("CURRENT_TIMESTAMP as created_at"),
+                        DB::raw("CURRENT_TIMESTAMP as updated_at")
+                    ])
+                    ->whereNull('project_project_status.status_id')
+                    ->whereIn('project_statuses.name', $chunkedStatusNames)
+            );
+        }
+    }
+
+    public function assignPrioritiesToProject(int $projectId, array $priorityNames): void
+    {
+        if (empty($priorityNames)) {
+            return;
+        }
+
+        // Ensure unique names only, to avoid redundant database operations
+        $uniquePriorityNames = array_unique($priorityNames);
+
+        // Chunk the unique priority names to handle large datasets efficiently
+        $chunkSize = 1000;  // Adjust chunk size based on your system's capacity
+        foreach (array_chunk($uniquePriorityNames, $chunkSize) as $chunkedPriorityNames) {
+
+            DB::table('project_priority')->insertUsing(
+                ['project_id', 'priority_id', 'created_at', 'updated_at'],
+                DB::table('project_priorities')
+                    ->leftJoin('project_priority', function ($join) use ($projectId) {
+                        $join->on('project_priorities.id', '=', 'project_priority.priority_id')
+                            ->where('project_priority.project_id', '=', $projectId);
+                    })
+                    ->select([
+                        DB::raw("$projectId as project_id"),
+                        'project_priorities.id as priority_id',
+                        DB::raw("CURRENT_TIMESTAMP as created_at"),  // Use database function for timestamp
+                        DB::raw("CURRENT_TIMESTAMP as updated_at")
+                    ])
+                    ->whereNull('project_priority.priority_id')  // Exclude already assigned priorities
+                    ->whereIn('project_priorities.name', $chunkedPriorityNames)
+            );
+        }
+    }
+
+    public function assignTypesToProject(int $projectId, array $typeNames): void
+{
+    if (empty($typeNames)) {
+        return;
+    }
+
+    // Ensure unique names only, to avoid redundant database operations
+    $uniqueTypeNames = array_unique($typeNames);
+
+    // Chunk the unique type names to handle large datasets efficiently
+    $chunkSize = 1000;  // Adjust chunk size based on your system's capacity
+    foreach (array_chunk($uniqueTypeNames, $chunkSize) as $chunkedTypeNames) {
+        
+        DB::table('project_project_type')->insertUsing(
+            ['project_id', 'type_id', 'created_at', 'updated_at'],
+            DB::table('project_types')
+                ->leftJoin('project_project_type', function ($join) use ($projectId) {
+                    $join->on('project_types.id', '=', 'project_project_type.type_id')
+                         ->where('project_project_type.project_id', '=', $projectId);
+                })
+                ->select([
+                    DB::raw("$projectId as project_id"),
+                    'project_types.id as type_id',
+                    DB::raw("CURRENT_TIMESTAMP as created_at"),  // Use database function for timestamp
+                    DB::raw("CURRENT_TIMESTAMP as updated_at")
+                ])
+                ->whereNull('project_project_type.type_id')  // Exclude already assigned types
+                ->whereIn('project_types.name', $chunkedTypeNames)
+        );
+    }
+}
+
 
 
     public function fetchActiveProjects(int $creatorId): LengthAwarePaginator
